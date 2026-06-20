@@ -81,7 +81,7 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 - [x] Root folder `orders-microservices/` created
 - [x] Base documentation (`CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`, `README.md`)
 - [ ] `order-service` generated via IntelliJ's **New Project → Spring Boot** (built-in Spring Initializr) with:
-      Maven · Java 21 · Spring Boot 3.5.x · Group `com.cirschot` · Artifact `order-service` ·
+      Maven · Java 21 · Spring Boot 3.5.x · Group `com.ciro` · Artifact `order-service` ·
       deps: **Spring Web, Spring Data JPA, PostgreSQL Driver, Lombok**
 - [ ] Created inside `orders-microservices/order-service/`
 - **Learn:** what a microservice is vs a monolith · Spring Initializr · a service's Maven structure.
