@@ -176,14 +176,19 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
 
 > **Update this section at the end of every session.** It's the first thing read on resume.
 
-- **Phase:** 0 (Setup) — in progress.
-- **Done:** environment verified (Java 21, Maven 3.9, Docker + Compose v5). Base documentation written.
-  Decisions made: new orders project · scope = full project (7 phases) · SQL DB = PostgreSQL ·
-  cloud = **AWS** (local-first: deploy only in Phase 8) · future feature: invoicing with ARCA.
-  Project translated to English (docs + working language).
-- **Immediate next step:** Ciro generates `order-service` via IntelliJ's **New Project → Spring Boot**
-  wizard with the Phase 0 config, inside `orders-microservices/order-service/`. Then: review the
-  generated structure together before touching code.
+- **Phase:** 1 (`order-service` production-grade) — 🟡 **ACTIVE**, just started.
+- **Done:** Phase 0 complete. Environment verified (Java 21, Maven 3.9, Docker + Compose v5). Docs
+  written and translated to English. Monorepo set up: single git repo at `orders-microservices/`,
+  remote `origin` = `git@github.com:ciroschot-dev/orders-microservices.git`. `order-service` generated
+  (Maven · Java 21 · Boot 3.5 · group `com.ciro` · deps Web/JPA/Postgres/Lombok · `application.yaml`)
+  and committed to `main`. Working branch for Phase 1: **`feat/phase-1-order-service`**.
+  Decisions: scope = full project (7 phases) · SQL DB = PostgreSQL · cloud = **AWS** (local-first,
+  deploy in Phase 8) · future feature: invoicing with ARCA · git = GitHub Flow, one branch per phase.
+- **Resume here (Phase 1, Task 1):** get Postgres running in Docker (DB `orders`, port 5432) and wire
+  `order-service/src/main/resources/application.yaml` to it (`spring.datasource` url/user/password from
+  **env vars**, not hardcoded · `server.port: 8081`). Verify with `./mvnw spring-boot:run`: app boots,
+  HikariCP connects, `Tomcat started on port 8081`, no datasource error. Then continue the Phase 1
+  checklist (entities → repository → DTOs → mapper → service → controller → errors → swagger → tests).
 - **To decide later:** product's final name · whether to niche into food service.
 
 ---
