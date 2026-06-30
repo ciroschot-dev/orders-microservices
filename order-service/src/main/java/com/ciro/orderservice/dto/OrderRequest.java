@@ -6,9 +6,9 @@ import jakarta.validation.constraints.NotEmpty;
 
 import java.util.List;
 
-public record CreateOrderRequest(
+public record OrderRequest(
         @NotBlank String customerName,
-        @NotEmpty @Valid List<CreateOrderItemRequest> items
+        @NotEmpty @Valid List<OrderItemRequest> items
 )
 {
 }

@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
-public record CreateOrderItemRequest(
+public record OrderItemRequest(
         @NotNull Long productId,
         @NotBlank String productName,
         @Positive int quantity,
