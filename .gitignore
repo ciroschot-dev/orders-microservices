@@ -3,6 +3,8 @@
 
 # IDE
 .idea/
+.idea/*
+/.idea/
 *.iml
 .vscode/
 
@@ -10,5 +12,5 @@
 **/target/
 
 # Logs y entorno local
-*.log
+*.logs
 .env
