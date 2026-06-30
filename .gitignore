@@ -1,0 +1,14 @@
+# OS
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Build (paraguas para todos los servicios)
+**/target/
+
+# Logs y entorno local
+*.log
+.env
