@@ -76,28 +76,33 @@ Full detail in `docs/ARCHITECTURE.md`. Bird's-eye view:
 
 Each phase is **committable and adds to the CV** even if you stop there. Mark progress with `[x]`.
 
-### Phase 0 — Setup and foundations  ·  🟡 IN PROGRESS
+### Phase 0 — Setup and foundations  ·  ✅ DONE
 **Goal:** repo structure + first service generated.
 - [x] Root folder `orders-microservices/` created
 - [x] Base documentation (`CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`, `README.md`)
-- [ ] `order-service` generated via IntelliJ's **New Project → Spring Boot** (built-in Spring Initializr) with:
-      Maven · Java 21 · Spring Boot 3.5.x · Group `com.ciro` · Artifact `order-service` ·
-      deps: **Spring Web, Spring Data JPA, PostgreSQL Driver, Lombok**
-- [ ] Created inside `orders-microservices/order-service/`
+- [x] `order-service` generated via IntelliJ's **New Project → Spring Boot** (built-in Spring Initializr) with:
+      Maven · Java 21 · Spring Boot 3.5.15 · Group `com.ciro` · Artifact `order-service` ·
+      deps: **Spring Web, Spring Data JPA, PostgreSQL Driver, Lombok, springdoc-openapi**
+- [x] Created inside `orders-microservices/order-service/`
 - **Learn:** what a microservice is vs a monolith · Spring Initializr · a service's Maven structure.
 
-### Phase 1 — `order-service` production-grade  ·  ⚪ pending
+### Phase 1 — `order-service` production-grade  ·  ✅ DONE
 **Goal:** one impeccable end-to-end service (still no microservices, focus on quality).
-- [ ] Postgres running in Docker (container) + `application.yml` pointing to it
-- [ ] `Order` entity (+ `OrderItem`), domain modeling
-- [ ] Layers: controller / service / repository / dto / mapper / exception
-- [ ] DTOs + Bean Validation on inputs
-- [ ] Orders CRUD (create, list, get by id, change status)
-- [ ] Global error handling with `@RestControllerAdvice` + `ProblemDetail` (RFC 7807)
-- [ ] Swagger/OpenAPI (springdoc) documented
-- [ ] Actuator (`/actuator/health`)
-- [ ] Tests: service unit + integration with **Testcontainers** (real ephemeral Postgres)
+- [x] Postgres running in Docker (container) + `application.yaml` pointing to it (env vars, port 8081)
+- [x] `Order` entity (+ `OrderItem`), domain modeling — bidirectional aggregate, `addItem`/`removeItem` helpers
+- [x] Layers: controller / service / repository / dto / mapper / exception (+ `enums`)
+- [x] DTOs (Java records) + Bean Validation on inputs (`@Valid` cascades into item list)
+- [x] Orders CRUD: create (POST 201), list (GET), get by id (GET), change status (PATCH `/{id}/status`)
+- [x] Global error handling with `@RestControllerAdvice` + `ProblemDetail` (RFC 7807) → 404 + 400 (field map)
+- [x] Swagger/OpenAPI (springdoc) live at `/swagger-ui.html` (works out of the box; no custom annotations yet)
+- [x] Actuator (`/actuator/health`, `show-details: always` → db health visible)
+- [x] Tests: service unit (Mockito, 3) + integration with **Testcontainers** (real ephemeral Postgres, 2)
 - **Learn:** pro layered architecture · DTO vs entity · ProblemDetail · Testcontainers · Actuator.
+
+> **Decisions in Phase 1:** mapping via **MapStruct** (`componentModel = "spring"`, `@AfterMapping` to sync the
+> bidirectional back-reference; Lombok+MapStruct processor order wired in `pom.xml`). Schema via
+> **`ddl-auto: update`** for now — **Flyway migrations deferred** (proper prod approach, add before shipping).
+> **Deferred:** web-layer tests (MockMvc for controller/validation/ProblemDetail) + deeper OpenAPI annotations.
 
 ### Phase 2 — Discovery with Eureka  ·  ⚪ pending
 **Goal:** services find each other on their own, no hardcoded IPs.
@@ -176,19 +181,31 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
 
 > **Update this section at the end of every session.** It's the first thing read on resume.
 
-- **Phase:** 1 (`order-service` production-grade) — 🟡 **ACTIVE**, just started.
-- **Done:** Phase 0 complete. Environment verified (Java 21, Maven 3.9, Docker + Compose v5). Docs
-  written and translated to English. Monorepo set up: single git repo at `orders-microservices/`,
+- **Phase:** 1 ✅ **COMPLETE**. Next up: **Phase 2 (Eureka / discovery)**.
+- **Done — Phase 0:** environment (Java 21, Maven, Docker/OrbStack). Monorepo `orders-microservices/`,
   remote `origin` = `git@github.com:ciroschot-dev/orders-microservices.git`. `order-service` generated
-  (Maven · Java 21 · Boot 3.5 · group `com.ciro` · deps Web/JPA/Postgres/Lombok · `application.yaml`)
-  and committed to `main`. Working branch for Phase 1: **`feat/phase-1-order-service`**.
-  Decisions: scope = full project (7 phases) · SQL DB = PostgreSQL · cloud = **AWS** (local-first,
-  deploy in Phase 8) · future feature: invoicing with ARCA · git = GitHub Flow, one branch per phase.
-- **Resume here (Phase 1, Task 1):** get Postgres running in Docker (DB `orders`, port 5432) and wire
-  `order-service/src/main/resources/application.yaml` to it (`spring.datasource` url/user/password from
-  **env vars**, not hardcoded · `server.port: 8081`). Verify with `./mvnw spring-boot:run`: app boots,
-  HikariCP connects, `Tomcat started on port 8081`, no datasource error. Then continue the Phase 1
-  checklist (entities → repository → DTOs → mapper → service → controller → errors → swagger → tests).
+  (Maven · Java 21 · Boot 3.5.15 · group `com.ciro`).
+- **Done — Phase 1 (`order-service`, branch `feat/phase-1-order-service`, all committed):**
+  a full production-grade REST service, tested end-to-end.
+  - **Infra:** `docker-compose.yml` at the repo root (single `postgres:16-alpine`, db `orders`, port 5432,
+    named volume). `application.yaml` wired via env vars (`${DB_URL:...}`), `server.port: 8081`.
+  - **Domain:** `Order` + `OrderItem` (bidirectional `@OneToMany`/`@ManyToOne`, owning side = `OrderItem`,
+    `addItem`/`removeItem` helpers, `cascade=ALL`+`orphanRemoval`, LAZY, `@CreationTimestamp`, status enum
+    stored as STRING). `productId` is a **logical reference** to the future inventory-service (no cross-DB FK).
+  - **Layers:** `controller` (REST, `@Valid`, 201/200, PATCH for status) · `service` (`@Transactional`,
+    dirty-checking update, `@RequiredArgsConstructor`) · `repository` (`JpaRepository`, `findByStatus`) ·
+    `dto` (records + Bean Validation) · `mapper` (**MapStruct**, `@AfterMapping` back-ref sync) ·
+    `exception` (`OrderNotFoundException` + `@RestControllerAdvice` → `ProblemDetail`).
+  - **Ops:** Swagger UI (`/swagger-ui.html`) + Actuator (`/actuator/health` with db details).
+  - **Tests:** `OrderServiceTest` (Mockito, 3) + `OrderServiceIntegrationTest` (Testcontainers, 2). All green.
+  - **Pending push:** commits are local on `feat/phase-1-order-service`; Ciro pushes + opens the PR.
+- **Key decisions (Phase 1):** DTOs = Java **records** · mapping = **MapStruct** (Lombok+MapStruct processor
+  order set in `pom.xml`) · schema = **`ddl-auto: update`**, **Flyway deferred** to before shipping ·
+  service = concrete class (no interface, single impl). **Deferred:** web-layer MockMvc tests + richer
+  OpenAPI annotations. Working mode: `/profesor` (Ciro writes all code; Claude may add English comments on request).
+- **Resume here (Phase 2 — Eureka):** create `discovery-server` (dep: Eureka Server), register
+  `order-service` as a Eureka client, verify on the dashboard (`http://localhost:8761`). New branch
+  `feat/phase-2-eureka` off `main` (after the Phase 1 PR merges). See Phase 2 checklist above.
 - **To decide later:** product's final name · whether to niche into food service.
 
 ---

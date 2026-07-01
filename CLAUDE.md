@@ -74,7 +74,8 @@ Each service follows **layered architecture** with one clear responsibility per 
 - `service/` → business logic. Interface + impl when it adds value.
 - `repository/` → data access (Spring Data).
 - `dto/` → API input/output objects. **Never** expose JPA entities directly.
-- `mapper/` → entity ⇄ DTO (MapStruct or manual).
+- `mapper/` → entity ⇄ DTO. **Convention: MapStruct** (`componentModel = "spring"`); for bidirectional
+  relationships use `@AfterMapping` to sync the owning-side back-reference (see `order-service`).
 - `model/` or `entity/` → domain/persistence entities.
 - `config/` → configuration (beans, OpenAPI, etc.).
 - `exception/` → own exceptions + global `@RestControllerAdvice`.
