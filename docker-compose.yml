@@ -1,7 +1,7 @@
 services:
-  postgres:
+  order-postgres:
     image: postgres:16-alpine
-    container_name: orderflow-postgres
+    container_name: orderflow-order-postgres
     environment:
       POSTGRES_USER: orders
       POSTGRES_PASSWORD: orders
@@ -9,8 +9,22 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - order_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  inventory-postgres:
+    image: postgres:16-alpine
+    container_name: orderflow-inventory-postgres
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: inventory
+      POSTGRES_DB: inventory
+    ports:
+      - "5433:5432"
+    volumes:
+      - inventory_postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  order_postgres_data:
+  inventory_postgres_data:
