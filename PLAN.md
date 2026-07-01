@@ -104,11 +104,11 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 > **`ddl-auto: update`** for now — **Flyway migrations deferred** (proper prod approach, add before shipping).
 > **Deferred:** web-layer tests (MockMvc for controller/validation/ProblemDetail) + deeper OpenAPI annotations.
 
-### Phase 2 — Discovery with Eureka  ·  ⚪ pending
+### Phase 2 — Discovery with Eureka  ·  ✅ COMPLETE
 **Goal:** services find each other on their own, no hardcoded IPs.
-- [ ] `discovery-server` generated (dep: Eureka Server)
-- [ ] `order-service` registers as a Eureka Client
-- [ ] Verify on the Eureka dashboard (`http://localhost:8761`)
+- [x] `discovery-server` generated (dep: Eureka Server)
+- [x] `order-service` registers as a Eureka Client
+- [x] Verify on the Eureka dashboard (`http://localhost:8761`)
 - **Learn:** service discovery · client-side discovery · why hosts aren't hardcoded.
 
 ### Phase 3 — `inventory-service` + communication  ·  ⚪ pending
@@ -181,7 +181,7 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
 
 > **Update this section at the end of every session.** It's the first thing read on resume.
 
-- **Phase:** 1 ✅ **COMPLETE**. Next up: **Phase 2 (Eureka / discovery)**.
+- **Phase:** 2 ✅ **COMPLETE**. Next up: **Phase 3 (`inventory-service` + OpenFeign)**.
 - **Done — Phase 0:** environment (Java 21, Maven, Docker/OrbStack). Monorepo `orders-microservices/`,
   remote `origin` = `git@github.com:ciroschot-dev/orders-microservices.git`. `order-service` generated
   (Maven · Java 21 · Boot 3.5.15 · group `com.ciro`).
@@ -203,9 +203,20 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
   order set in `pom.xml`) · schema = **`ddl-auto: update`**, **Flyway deferred** to before shipping ·
   service = concrete class (no interface, single impl). **Deferred:** web-layer MockMvc tests + richer
   OpenAPI annotations. Working mode: `/profesor` (Ciro writes all code; Claude may add English comments on request).
-- **Resume here (Phase 2 — Eureka):** create `discovery-server` (dep: Eureka Server), register
-  `order-service` as a Eureka client, verify on the dashboard (`http://localhost:8761`). New branch
-  `feat/phase-2-eureka` off `main` (after the Phase 1 PR merges). See Phase 2 checklist above.
+- **Done — Phase 2 (Eureka, branch `feat/phase-2-eureka`):**
+  - `discovery-server` created (Boot 3.5.16, Spring Cloud 2025.0.3, dep: Eureka Server only). `@EnableEurekaServer`
+    on the main class; `application.yaml` → `server.port: 8761`, standalone (`register-with-eureka: false`,
+    `fetch-registry: false`).
+  - `order-service` turned into a Eureka client: added `spring-cloud-starter-netflix-eureka-client` + the
+    `spring-cloud-dependencies` BOM (`spring-cloud.version: 2025.0.3`) to its `pom`; `application.yaml` →
+    `eureka.client.service-url.defaultZone: http://localhost:8761/eureka/`. Its `spring.application.name`
+    (`order-service`) is the registry ID.
+  - Verified: `ORDER-SERVICE` shows **UP** on the dashboard (registration `204`). The red "self-preservation"
+    banner is expected in local dev (1 client → renews < threshold); left ON on purpose.
+- **Resume here (Phase 3 — inventory + OpenFeign):** generate `inventory-service` (own Postgres) with a
+  `Product`/`Stock` entity + CRUD, make it a Eureka client too, then have `order-service` call it via
+  **OpenFeign** (resolved by Eureka) with a **Resilience4j** circuit breaker / fallback. New branch
+  `feat/phase-3-inventory` off `main` after the Phase 2 PR merges. See Phase 3 checklist above.
 - **To decide later:** product's final name · whether to niche into food service.
 
 ---
