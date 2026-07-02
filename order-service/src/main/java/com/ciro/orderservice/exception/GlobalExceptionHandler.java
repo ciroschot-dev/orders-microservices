@@ -39,6 +39,15 @@ public class GlobalExceptionHandler
         return problemDetail;
     }
 
+    @ExceptionHandler(InventoryUnavailableException.class)
+    public ProblemDetail handleInventoryUnavailable(InventoryUnavailableException ex)
+    {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.SERVICE_UNAVAILABLE);
+        problemDetail.setTitle("Inventory Service Unavailable");
+        problemDetail.setDetail(ex.getMessage());
+        return problemDetail;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException ex)
     {

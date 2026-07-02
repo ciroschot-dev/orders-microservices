@@ -1,6 +1,7 @@
 package com.ciro.orderservice.service;
 
 import com.ciro.orderservice.client.InventoryClient;
+import com.ciro.orderservice.client.InventoryGateway;
 import com.ciro.orderservice.dto.OrderRequest;
 import com.ciro.orderservice.dto.OrderResponse;
 import com.ciro.orderservice.dto.ProductResponse;
@@ -24,7 +25,7 @@ public class OrderService
 {
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
-    private final InventoryClient inventoryClient;
+    private final InventoryGateway inventoryGateway;
 
     @Transactional
     public OrderResponse createOrder(OrderRequest orderRequest)
@@ -36,16 +37,8 @@ public class OrderService
         // a synchronous decrement would couple both services into one transaction.
         orderRequest.items().forEach(item ->
         {
-            ProductResponse product;
-            try
-            {
-                product = inventoryClient.getProductById(item.productId());
-            }
-            catch (FeignException.NotFound ex)
-            {
-                throw new ProductNotFoundException(item.productId());
-            }
-            if (product.availableQuantity() < item.quantity()) //The available stock of the product is insufficient to fulfill the order
+            ProductResponse product = inventoryGateway.getProduct(item.productId());
+            if (product.availableQuantity() < item.quantity())
             {
                 throw new InsufficientStockException(item.productId(), product.availableQuantity());
             }
