@@ -145,6 +145,23 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 - [ ] Healthchecks and startup order (`depends_on`)
 - **Learn:** multi-stage builds · compose · networking between containers · healthchecks.
 
+### Phase 7.5 — Demo frontend, built with agentic AI  ·  ⚪ future (post-learning)
+**Goal:** turn the backend into a **fully functional app anyone can try in the browser** — the piece that
+makes the portfolio land. Not the sellable SaaS yet (no multi-tenancy/billing); a polished, public demo.
+**CV angle (the point):** build it *primarily with agentic AI tooling* (Claude Code, v0, etc.) so it becomes
+a first-class CV line — "agentic programming / AI-assisted development" — which is highly valued today.
+- [ ] Frontend SPA (React/Next or similar) consuming the **API Gateway** (Phase 4), not the services directly
+- [ ] Core screens: manage products/stock · create an order (with the live stock check) · view order
+      status & history · see notifications (Phase 6 fan-out)
+- [ ] Built with an **agentic workflow** on purpose — document how it was done (prompts, iterations) as part
+      of the portfolio story
+- [ ] **Public live demo**: deploy frontend + backend somewhere anyone can click through it with seed data
+      and a guided happy path (no local setup required)
+- **Learn / CV:** agentic development end-to-end · wiring a real UI to a microservices backend via the
+  gateway · product thinking (turning APIs into something a human actually uses).
+> Placement note: numbered 7.5 to sit between "system works" (7) and "sellable SaaS" (8) without renumbering.
+> Can be promoted/reordered later.
+
 ### Phase 8 — Path to a sellable SaaS  ·  ⚪ future (post-learning)
 **Cloud strategy: local-first.** Everything is developed and tested locally with Docker (free). AWS only
 comes in once the whole system runs (post Phase 7). Don't deploy on each phase: avoid cost and complexity.
