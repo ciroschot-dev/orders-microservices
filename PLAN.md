@@ -111,11 +111,11 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 - [x] Verify on the Eureka dashboard (`http://localhost:8761`)
 - **Learn:** service discovery · client-side discovery · why hosts aren't hardcoded.
 
-### Phase 3 — `inventory-service` + communication  ·  ⚪ pending
+### Phase 3 — `inventory-service` + communication  ·  ✅ COMPLETE
 **Goal:** second service and first communication between services (synchronous).
-- [ ] `inventory-service` (own Postgres) with `Product`/`Stock` entity + CRUD
-- [ ] `order-service` queries stock via **OpenFeign** (resolved by Eureka)
-- [ ] **Resilience4j** (circuit breaker / fallback) in case `inventory` is down
+- [x] `inventory-service` (own Postgres) with `Product` entity + CRUD
+- [x] `order-service` queries stock via **OpenFeign** (resolved by Eureka)
+- [x] **Resilience4j** (circuit breaker / fallback) in case `inventory` is down
 - **Learn:** OpenFeign · client-side load balancing · circuit breaker · resilience.
 
 ### Phase 4 — API Gateway  ·  ⚪ pending
@@ -198,7 +198,7 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
 
 > **Update this section at the end of every session.** It's the first thing read on resume.
 
-- **Phase:** 2 ✅ **COMPLETE**. Next up: **Phase 3 (`inventory-service` + OpenFeign)**.
+- **Phase:** 3 ✅ **COMPLETE**. Next up: **Phase 4 (API Gateway)**.
 - **Done — Phase 0:** environment (Java 21, Maven, Docker/OrbStack). Monorepo `orders-microservices/`,
   remote `origin` = `git@github.com:ciroschot-dev/orders-microservices.git`. `order-service` generated
   (Maven · Java 21 · Boot 3.5.15 · group `com.ciro`).
@@ -230,10 +230,37 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
     (`order-service`) is the registry ID.
   - Verified: `ORDER-SERVICE` shows **UP** on the dashboard (registration `204`). The red "self-preservation"
     banner is expected in local dev (1 client → renews < threshold); left ON on purpose.
-- **Resume here (Phase 3 — inventory + OpenFeign):** generate `inventory-service` (own Postgres) with a
-  `Product`/`Stock` entity + CRUD, make it a Eureka client too, then have `order-service` call it via
-  **OpenFeign** (resolved by Eureka) with a **Resilience4j** circuit breaker / fallback. New branch
-  `feat/phase-3-inventory` off `main` after the Phase 2 PR merges. See Phase 3 checklist above.
+- **Done — Phase 3 (inventory + OpenFeign + Resilience4j, branch `feat/phase-3-inventory`, all committed):**
+  - **`inventory-service`** (port 8082, Boot 3.5.16, Eureka client, own Postgres): full CRUD.
+    - **Infra:** a *second* Postgres container in the root `docker-compose.yml` — `inventory-postgres`
+      (host port **5433**, db `inventory`, own volume). The orders one was renamed `order-postgres`.
+      Rationale: **database-per-service** (no shared DB).
+    - **Layers (same conventions as order):** `Product` entity (id, name, unique `sku`, `availableQuantity`)
+      + `ProductRepository` (`findBySku`) · `ProductRequest`/`ProductResponse` records + Bean Validation ·
+      **MapStruct** `ProductMapper` (wired into the pom) · `ProductService` (create validates SKU dup;
+      update via dirty checking; delete guards with `existsById`) · `ProductController` (`/api/products`,
+      POST 201, GET, PUT/{id}, DELETE 204, ids via path) · `exception` (`ProductNotFoundException` 404,
+      `DuplicateSkuException` **409**, validation 400) + `@RestControllerAdvice` → `ProblemDetail`.
+  - **`order-service` → `inventory-service` via OpenFeign:** `spring-cloud-starter-openfeign`,
+    `@EnableFeignClients`, `InventoryClient` targets `inventory-service` **by Eureka name** (no host).
+    `createOrder` now checks stock for each item *before* persisting (guard). Only **checks**, never
+    decrements — the decrement is deferred to the async RabbitMQ flow (Phase 5).
+    - Insufficient stock → `InsufficientStockException` **409**. Unknown product (Feign 404) → translated
+      to `ProductNotFoundException` **404** (Ciro's call: referenced entity not found).
+  - **Resilience4j circuit breaker:** `InventoryGateway` (its own bean, to dodge AOP self-invocation) wraps
+    the Feign call with `@CircuitBreaker(name="inventory", fallbackMethod=...)`. **Key subtlety learned:**
+    `ignore-exceptions` only stops an exception from *tripping* the breaker — it does **not** skip the
+    fallback. So the fallback itself inspects the `Throwable`: re-throws `ProductNotFoundException` (→ 404),
+    everything else → `InventoryUnavailableException` **503**. `ignore-exceptions: ProductNotFoundException`
+    so 404s don't open the breaker. Instance config: window 10, min-calls 5, 50% threshold, open 10s.
+  - **Verified end-to-end (Swagger):** 201 normal · 409 insufficient stock · 404 unknown product ·
+    503 when inventory is down, breaker opens after threshold and short-circuits, recovers via half-open.
+- **Key decisions (Phase 3):** single `Product` entity (no separate `Stock` table — YAGNI) · 409 for
+  duplicate/insufficient · 404 for unknown referenced product · circuit breaker in a dedicated bean ·
+  fallback does the business-vs-outage distinction. **Interview Q&A** kept in `docs/INTERVIEW-PREP.md`.
+- **Resume here (Phase 4 — API Gateway):** generate `api-gateway` (Spring Cloud Gateway), route
+  `/api/orders/**` → order and `/api/inventory/**` (or `/api/products/**`) → inventory, resolved via Eureka.
+  New branch `feat/phase-4-gateway` off `main` after the Phase 3 PR merges. See Phase 4 checklist above.
 - **To decide later:** product's final name · whether to niche into food service.
 
 ---

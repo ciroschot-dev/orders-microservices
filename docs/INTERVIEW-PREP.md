@@ -125,10 +125,45 @@ no una dependencia de código compartida.
 
 ---
 
-## 6. Resiliencia (Resilience4j) — *se completa al cerrar Phase 3*
+## 6. Resiliencia (Resilience4j)
 
-<!-- pendiente: circuit breaker (estados closed/open/half-open), fallback, por qué un servicio
-     lento/caído no debe tumbar al que lo llama, timeouts, retries. -->
+**¿Qué problema resuelve el circuit breaker?**
+Una llamada síncrona a un servicio caído/lento deja al que llama **esperando**. Con muchas requests,
+los threads se acumulan colgados y el servicio que llama **también se cae**: falla en cascada. El
+circuit breaker corta eso.
+
+**Los tres estados.**
+- **CLOSED** — normal, las llamadas pasan; cuenta las fallas.
+- **OPEN** — cruzó el umbral de fallas; **no llama** al servicio, ejecuta el fallback al instante (no se
+  cuelga). Le da tiempo a recuperarse.
+- **HALF-OPEN** — pasado un tiempo, deja pasar unas pocas de prueba: si andan → CLOSED, si fallan → OPEN.
+
+**¿Qué es el fallback y qué decidir en él?**
+El plan B cuando no podés llamar. Es una decisión de **negocio**: acá, si no podemos verificar el stock,
+rechazamos la orden con **503** ("inventory no disponible") en vez de aceptar algo que no validamos.
+
+**Sutileza clave (la que me mordió): `ignore-exceptions` NO evita el fallback.**
+`ignore-exceptions` solo hace que esa excepción **no cuente para abrir el breaker**. El fallback se
+ejecuta igual ante *cualquier* excepción. Por eso, para que un 404 de negocio no termine en 503, el
+**fallback mismo** tiene que inspeccionar el `Throwable` y **re-lanzar** la excepción de negocio
+(`ProductNotFoundException` → 404); solo lo que es caída real → 503. Y aparte se ignora esa excepción
+para que un 404 no abra el breaker de gusto.
+
+**¿Por qué el `@CircuitBreaker` va en un bean aparte (`InventoryGateway`) y no en `OrderService`?**
+La anotación funciona por un **proxy AOP**. Si llamás al método anotado desde la misma clase
+(self-invocation), la llamada no pasa por el proxy y la anotación **no hace nada**. En un bean separado,
+`OrderService` lo llama como dependencia → pasa por el proxy → el breaker actúa. Y de paso separa la
+resiliencia (frontera con inventory) de la lógica de órdenes.
+
+**"No existe" vs "está caído" — dos fallas distintas.**
+Inventory responde 404 = *respuesta de negocio* → 4xx limpio, no debe abrir el breaker. Inventory no
+responde (timeout/conexión/5xx) = *falla de infra* → cuenta para el breaker + fallback → 503.
+
+**Config del instance (qué significan los números).**
+`sliding-window-size 10` + `failure-rate-threshold 50` → mira las últimas 10 llamadas, abre si ≥50%
+fallaron. `minimum-number-of-calls 5` → no evalúa hasta tener 5 (evita abrir con 1 sola falla).
+`wait-duration-in-open-state 10s` → cuánto queda OPEN antes de HALF-OPEN.
+`permitted-number-of-calls-in-half-open-state 3` → cuántas de prueba deja pasar.
 
 ---
 
