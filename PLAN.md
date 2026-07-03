@@ -118,10 +118,10 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 - [x] **Resilience4j** (circuit breaker / fallback) in case `inventory` is down
 - **Learn:** OpenFeign · client-side load balancing · circuit breaker · resilience.
 
-### Phase 4 — API Gateway  ·  ⚪ pending
+### Phase 4 — API Gateway  ·  ✅ done
 **Goal:** a single entry door for the whole system.
-- [ ] `api-gateway` (Spring Cloud Gateway) routing to order/inventory via Eureka
-- [ ] Path routing (`/api/orders/**` → order, `/api/inventory/**` → inventory)
+- [x] `api-gateway` (Spring Cloud Gateway) routing to order/inventory via Eureka
+- [x] Path routing (`/api/orders/**` → order, `/api/products/**` → inventory)
 - **Learn:** API gateway pattern · routing · why a single entry point (auth, CORS, rate limit later).
 
 ### Phase 5 — RabbitMQ (event-driven)  ·  ⚪ pending  ·  ⭐ core of the project
@@ -198,7 +198,7 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
 
 > **Update this section at the end of every session.** It's the first thing read on resume.
 
-- **Phase:** 3 ✅ **COMPLETE**. Next up: **Phase 4 (API Gateway)**.
+- **Phase:** 4 ✅ **COMPLETE**. Next up: **Phase 5 (RabbitMQ, event-driven)** — ⭐ core of the project.
 - **Done — Phase 0:** environment (Java 21, Maven, Docker/OrbStack). Monorepo `orders-microservices/`,
   remote `origin` = `git@github.com:ciroschot-dev/orders-microservices.git`. `order-service` generated
   (Maven · Java 21 · Boot 3.5.15 · group `com.ciro`).
@@ -258,9 +258,22 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
 - **Key decisions (Phase 3):** single `Product` entity (no separate `Stock` table — YAGNI) · 409 for
   duplicate/insufficient · 404 for unknown referenced product · circuit breaker in a dedicated bean ·
   fallback does the business-vs-outage distinction. **Interview Q&A** kept in `docs/INTERVIEW-PREP.md`.
-- **Resume here (Phase 4 — API Gateway):** generate `api-gateway` (Spring Cloud Gateway), route
-  `/api/orders/**` → order and `/api/inventory/**` (or `/api/products/**`) → inventory, resolved via Eureka.
-  New branch `feat/phase-4-gateway` off `main` after the Phase 3 PR merges. See Phase 4 checklist above.
+- **Done — Phase 4 (`api-gateway`, branch `feat/phase-4-gateway`, merged to `main`):** Spring Cloud
+  Gateway on the **reactive stack** (WebFlux + Netty — starter `spring-cloud-starter-gateway-server-webflux`,
+  **no** `spring-boot-starter-web`). Module at repo root, Boot 3.5.16, Spring Cloud 2025.0.3, Eureka client.
+  `application.yaml`: `server.port: 8080`, explicit Eureka `defaultZone`, and **two routes** under the new
+  2025.0.x path `spring.cloud.gateway.server.webflux.routes` — `/api/orders/**` → `lb://order-service`,
+  `/api/products/**` → `lb://inventory-service` (destinations resolved by Eureka, load-balanced, zero
+  hardcoded host:port). **Verified end-to-end:** `curl :8080/api/products` and `:8080/api/orders` both proxy
+  correctly through the gateway, never touching 8081/8082 directly.
+- **Key decisions (Phase 4):** gateway = **reactive** (Netty), so no Spring Web · route destinations via
+  `lb://<eureka-name>` not host:port · port + Eureka zone set **explicitly** (not relying on Boot defaults)
+  because the gateway is the public face of the system · auth/CORS/rate-limit deferred to a later pass.
+- **Resume here (Phase 5 — RabbitMQ, event-driven ⭐):** RabbitMQ in Docker (management UI `:15672`);
+  `order-service` publishes an `OrderCreated` event (exchange + routing key) on create; `inventory-service`
+  consumes it and **decrements** stock (the decrement deferred from Phase 3 — today it only *checks*); add
+  failure handling (retries / dead-letter queue). New branch `feat/phase-5-rabbitmq` off `main`. See Phase 5
+  checklist above.
 - **To decide later:** product's final name · whether to niche into food service.
 
 ---
