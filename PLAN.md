@@ -192,6 +192,51 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
 - **Learn:** declarative orchestration · pods/deployments/services · ConfigMap/Secret · self-healing ·
   auto-scaling · rolling updates · why these patterns exist (you built them by hand in earlier phases).
 
+### Phase 10 — Interview mastery (defend every concept out loud)  ·  ⚪ ongoing  ·  🎯 the actual goal
+**Why this phase exists:** the project is the *evidence*, not the goal. The goal is the **job**. In the
+room nobody watches you code — they ask *why*, they push on trade-offs, they poke the corner cases. A
+concept you built but can't explain out loud, under a follow-up, is a concept you don't own yet. This phase
+turns "I made it work" into "I can defend why, and what I'd do differently".
+
+**Source material:** `docs/INTERVIEW-PREP.md` — the living Q&A that grows one section per phase, drawn from
+the real decisions made here. This phase is about *rehearsing* it aloud, not just having it written.
+
+**Method (per concept, not per phase):**
+1. **Explain it cold, out loud, in 60–90s** — no notes. Record yourself or say it to someone. If you stumble
+   or hand-wave, that's the gap.
+2. **Survive one follow-up "why?"** — for each answer, have the next layer ready: *why this and not the
+   alternative?*, *what does it cost?*, *when would you NOT do this?*. Interviewers dig one level past the
+   textbook answer; that's where they separate "read a tutorial" from "understands it".
+3. **Name the trade-off** — every decision here had a cost (async → eventual consistency; database-per-service
+   → no JOINs; circuit breaker → stale/fallback data). Owning the cost is the senior signal.
+4. **Tie it to a line of your code** — "I used X" beats "X exists". Point at the file, the annotation, the config.
+
+**Concept domains to own** (each maps to a section of `INTERVIEW-PREP.md` and a piece you built):
+- [ ] **Microservices fundamentals** — vs monolith; when it's over-engineering; database-per-service and its cost.
+- [ ] **Spring core** — IoC/DI, why constructor injection, bean lifecycle, `@Transactional` (proxy, propagation,
+      why self-invocation breaks it — you hit this with the circuit breaker bean).
+- [ ] **JPA / Hibernate** — entity vs DTO, LAZY vs EAGER, the N+1 problem, dirty checking, bidirectional
+      ownership, `ddl-auto` vs Flyway (and why Flyway for prod).
+- [ ] **REST design** — status codes with intent (201/404/409/503), `ProblemDetail`/RFC 7807, idempotency.
+- [ ] **Service discovery (Eureka)** — the problem it solves, client- vs server-side, heartbeats, self-preservation.
+- [ ] **Synchronous comms (OpenFeign)** — declarative clients, client-side load balancing, resolve-by-name.
+- [ ] **Resilience (Resilience4j)** — circuit breaker states (closed/open/half-open), fallback vs ignore-exceptions,
+      why the breaker lives in its own bean (AOP self-invocation), timeouts/retries/bulkhead.
+- [ ] **API Gateway** — single entry point, why reactive (Netty) here, `lb://` routing, what belongs here
+      (auth/CORS/rate-limit) vs the services.
+- [ ] **Async messaging (RabbitMQ / AMQP)** — exchange/queue/binding, producer/consumer, topic vs direct vs fanout,
+      **idempotency** (why a consumer must tolerate duplicates), **DLQ + retries**, why async beats sync here.
+- [ ] **SQL vs NoSQL** — Postgres vs MongoDB, when each, why notification is a fit for a document store.
+- [ ] **Distributed systems basics** — eventual consistency, CAP (pick 2), why there's no cross-service transaction
+      and how the saga/choreography idea replaces it (order publishes → inventory reacts).
+- [ ] **Testing** — unit (Mockito) vs integration (Testcontainers), why a real ephemeral DB beats an H2 mock.
+- [ ] **Docker / Compose** — images vs containers, multi-stage builds, layer caching, volumes, why compose for local.
+- [ ] **Cloud mapping (AWS)** — each local piece → its managed AWS equivalent (see `docs/ARCHITECTURE.md`), and
+      *why* (Fargate vs EC2, RDS vs self-managed Postgres, Amazon MQ vs running RabbitMQ yourself).
+
+**Done when:** you can pick any domain at random and deliver the cold explanation + one follow-up + the trade-off,
+without notes, in Spanish or English. That's the interview.
+
 ---
 
 ## 5. CURRENT STATUS  📍
