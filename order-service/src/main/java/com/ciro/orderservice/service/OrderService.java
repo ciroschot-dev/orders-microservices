@@ -1,19 +1,19 @@
 package com.ciro.orderservice.service;
 
-import com.ciro.orderservice.client.InventoryClient;
 import com.ciro.orderservice.client.InventoryGateway;
 import com.ciro.orderservice.dto.OrderRequest;
 import com.ciro.orderservice.dto.OrderResponse;
 import com.ciro.orderservice.dto.ProductResponse;
 import com.ciro.orderservice.enums.OrderStatus;
+import com.ciro.orderservice.event.OrderCreatedEvent;
+import com.ciro.orderservice.event.OrderItemEvent;
 import com.ciro.orderservice.exception.InsufficientStockException;
 import com.ciro.orderservice.exception.OrderNotFoundException;
-import com.ciro.orderservice.exception.ProductNotFoundException;
 import com.ciro.orderservice.mapper.OrderMapper;
 import com.ciro.orderservice.model.Order;
 import com.ciro.orderservice.repository.OrderRepository;
-import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +26,7 @@ public class OrderService
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final InventoryGateway inventoryGateway;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public OrderResponse createOrder(OrderRequest orderRequest)
@@ -46,6 +47,14 @@ public class OrderService
 
         Order order = orderMapper.toEntity(orderRequest);
         Order savedOrder = orderRepository.save(order);
+
+        OrderCreatedEvent event = new OrderCreatedEvent(savedOrder.getId(), savedOrder
+                .getItems()
+                .stream()
+                .map(item -> new OrderItemEvent(item.getProductId(), item.getQuantity())).toList());
+
+        applicationEventPublisher.publishEvent(event);
+
         return orderMapper.toResponse(savedOrder);
     }
 
