@@ -168,19 +168,28 @@ a first-class CV line — "agentic programming / AI-assisted development" — wh
 > Placement note: numbered 7.5 to sit between "system works" (7) and "sellable SaaS" (8) without renumbering.
 > Can be promoted/reordered later.
 
-### Phase 8 — Path to a sellable SaaS  ·  ⚪ future (post-learning)
+### Phase 8 — Production-grade + cloud  ·  ⚪ future (post-learning)
 **Cloud strategy: local-first.** Everything is developed and tested locally with Docker (free). AWS only
 comes in once the whole system runs (post Phase 7). Don't deploy on each phase: avoid cost and complexity.
 For CV/interview it's enough to have deployed it once, have the diagram and know how to explain it (it can
 be turned off to avoid paying). AWS mapping in `docs/ARCHITECTURE.md` → "Cloud target (AWS)".
+
+> **Scope decision (Ciro, 2026-07-10):** the goal is **landing the job**, not selling OrderFlow. So 8A is
+> the phase; 8B only happens if the product is actually going to be sold. Building 8B "for the portfolio"
+> is wasted time — no interviewer asks about your billing integration.
+
+**8A — the part that goes on the CV (do this).** A real, working, deployed product.
 - [ ] Deploy on **AWS**: services on **ECS Fargate** · **RDS** (Postgres) · **DocumentDB** or Mongo Atlas ·
-      **Amazon MQ** (RabbitMQ) · **ECR** (images) · **Secrets Manager** · CI/CD with **GitHub Actions**
+      **Amazon MQ** (RabbitMQ) · **ECR** (images) · **Secrets Manager**
+- [ ] **CI/CD with GitHub Actions** (build → test → push image → deploy)
+- [ ] **Authentication/authorization** (Spring Security + JWT or OAuth2) — at the gateway
+- [ ] **Observability** (centralized logs, metrics, distributed tracing)
 - [ ] (Kubernetes → see optional Phase 9 below)
-- [ ] Authentication/authorization (Spring Security + JWT or OAuth2)
+
+**8B — only if OrderFlow is actually going to be sold (skip otherwise).** Product work, not CV work.
 - [ ] Multi-tenancy (several isolated businesses)
 - [ ] Admin panel (frontend) + billing/subscription
-- [ ] **Electronic invoicing with ARCA (ex-AFIP)** — feature that makes the product truly sellable
-- [ ] Observability (centralized logs, metrics, distributed tracing)
+- [ ] **Electronic invoicing with ARCA (ex-AFIP)** — the feature that makes it truly sellable
 
 ### Phase 9 (OPTIONAL) — Kubernetes  ·  ⚪ future · do only after Phase 8 works
 **Why:** Accenture and most serious Java/cloud roles list **Openshift**, which *is* Kubernetes.
