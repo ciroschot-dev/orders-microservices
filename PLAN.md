@@ -124,13 +124,19 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 - [x] Path routing (`/api/orders/**` → order, `/api/products/**` → inventory)
 - **Learn:** API gateway pattern · routing · why a single entry point (auth, CORS, rate limit later).
 
-### Phase 5 — RabbitMQ (event-driven)  ·  ⚪ pending  ·  ⭐ core of the project
+### Phase 5 — RabbitMQ (event-driven)  ·  🔵 in progress  ·  ⭐ core of the project
 **Goal:** decouple with asynchronous messaging.
-- [ ] RabbitMQ running in Docker (with management UI `http://localhost:15672`)
+- [x] RabbitMQ running in Docker (with management UI `http://localhost:15672`)
 - [ ] `order` publishes `OrderCreated` event (exchange + routing key) when creating an order
-- [ ] `inventory` consumes `OrderCreated` and decrements stock
+      — published **after commit** (`@TransactionalEventListener(AFTER_COMMIT)`), never inside the tx
+- [ ] `inventory` consumes `OrderCreated` and decrements stock (atomic conditional UPDATE, idempotent)
 - [ ] Failure handling: retries / dead-letter queue (DLQ)
-- **Learn:** AMQP · exchange/queue/binding · producer/consumer · idempotency · DLQ · why async.
+- [ ] *(optional, deferred)* **Transactional outbox** — the only way to make the DB write and the publish
+      truly atomic. Deliberately skipped: `AFTER_COMMIT` covers rollback; its remaining gap is losing the
+      event if the process dies between commit and send. The outbox is not "one table" — it's a poller with
+      multi-instance locking, ordering, cleanup and *still* at-least-once. Know it, name its limits, don't build it.
+- **Learn:** AMQP · exchange/queue/binding · producer/consumer · **dual-write problem** · idempotency · DLQ ·
+  why async · eventual consistency · saga/compensation (why there's no distributed transaction).
 
 ### Phase 6 — `notification-service` + MongoDB  ·  ⚪ pending
 **Goal:** add NoSQL and a second consumer of the event.

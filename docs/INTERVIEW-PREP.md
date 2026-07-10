@@ -8,3 +8,6 @@ integration testing with Testcontainers. Answers focus on the *why*, tight enoug
 > **Single source of truth:** the full Q&A is consolidated in my personal interview-study hub, so all
 > prep material (this project + others) lives in one place for studying. New Q&A (later phases) is added
 > there. This file is kept as a pointer to avoid duplicated, drifting copies.
+>
+> **Where:** iCloud Drive → `CV/CV PROGRAMADOR Inglés/Interview Prep/orderflow-interview-prep.md`
+> (alongside `java-core-essentials.md`, `spring-boot-essentials.md`, `sql-essentials.md`, etc.).
