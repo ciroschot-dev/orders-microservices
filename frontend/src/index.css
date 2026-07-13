@@ -1,0 +1,50 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/* Design system: Dark Mode (OLED) — navy #0F172A, acento verde run/success,
+   colores de estado green/amber/blue/violet/red. Tokens vía @theme de Tailwind v4. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-muted: #272f42;
+  --color-border: #334155;
+  --color-border-strong: #475569;
+  --color-fg: #f8fafc;
+  --color-fg-muted: #94a3b8;
+  --color-accent: #22c55e;
+  --color-accent-fg: #052e16;
+
+  /* estados de la orden */
+  --color-status-pending: #f59e0b;
+  --color-status-confirmed: #3b82f6;
+  --color-status-preparing: #8b5cf6;
+  --color-status-delivered: #22c55e;
+  --color-status-cancelled: #ef4444;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* números alineados en columnas de datos (stock, precios, ids) */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -155,18 +155,27 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 - [x] Container-friendly config: `EUREKA_URI`/`DB_URL`/`RABBITMQ_HOST`/`MONGO_URI` via env (no `localhost`)
 - **Learn:** multi-stage builds · compose · networking between containers · healthchecks.
 
-### Phase 7.5 — Demo frontend, built with agentic AI  ·  ⚪ future (post-learning)
+### Phase 7.5 — Demo frontend, built with agentic AI  ·  ✅ done & verified (local) — 2026-07-13
 **Goal:** turn the backend into a **fully functional app anyone can try in the browser** — the piece that
 makes the portfolio land. Not the sellable SaaS yet (no multi-tenancy/billing); a polished, public demo.
 **CV angle (the point):** build it *primarily with agentic AI tooling* (Claude Code, v0, etc.) so it becomes
 a first-class CV line — "agentic programming / AI-assisted development" — which is highly valued today.
-- [ ] Frontend SPA (React/Next or similar) consuming the **API Gateway** (Phase 4), not the services directly
-- [ ] Core screens: manage products/stock · create an order (with the live stock check) · view order
-      status & history · see notifications (Phase 6 fan-out)
+- **Stack:** Vite + React 19 + TypeScript + Tailwind v4, en `frontend/`. Diseño Dark-OLED (navy `#0F172A`,
+  acento verde, Inter, badges de estado por color) elegido con la skill `ui-ux-pro-max`.
+- [x] Frontend SPA consumiendo el **API Gateway** (`:8080`) vía proxy de Vite (`/api` → gateway; CORS gratis en dev)
+- [x] Core screens: Inventario (ABM productos) · Crear orden (con vista de stock en vivo) · Órdenes
+      (estados + PATCH + ítems expandibles) · Notificaciones (polling, fan-out de Phase 6)
+- [x] "Momento wow": tras crear una orden se ve el stock caer **y la orden pasar sola a CONFIRMED** en vivo
+      (polling) — prueba visual del flujo async
+- [x] **Cierre de saga (coreografía)**: inventory publica de vuelta `order.confirmed` / `order.cancelled` y
+      order-service los consume para mover la orden a CONFIRMED / CANCELLED sin intervención manual. Routing
+      keys nuevas sobre `order.exchange`; colas `order.confirmed.order.queue` / `order.cancelled.order.queue`.
+- [x] Verificado end-to-end: happy path → CONFIRMED + stock 20→15; y la **carrera TOCTOU** (2 órdenes de 8 vs
+      stock 10) → una CONFIRMED (10→2), la otra CANCELLED, stock nunca negativo. Corre con `npm run dev`.
+- [ ] **Public live demo**: deploy frontend + backend somewhere anyone can click through it with seed data
+      and a guided happy path (no local setup required) — **diferido** (por ahora corre local)
 - [ ] Built with an **agentic workflow** on purpose — document how it was done (prompts, iterations) as part
       of the portfolio story
-- [ ] **Public live demo**: deploy frontend + backend somewhere anyone can click through it with seed data
-      and a guided happy path (no local setup required)
 - **Learn / CV:** agentic development end-to-end · wiring a real UI to a microservices backend via the
   gateway · product thinking (turning APIs into something a human actually uses).
 > Placement note: numbered 7.5 to sit between "system works" (7) and "sellable SaaS" (8) without renumbering.
@@ -262,12 +271,12 @@ without notes, in Spanish or English. That's the interview.
 
 > **Update this section at the end of every session.** It's the first thing read on resume.
 
-- **Phase:** 5 + 6 + 7 ✅ **DONE & VERIFIED END-TO-END** (branch `feat/phase-5-rabbitmq`). `docker compose up
-  --build` brings up all 9 containers healthy. Verified live: create order → **stock drops on its own**
-  (50→47→45), order is **PENDING**, **notification appears** (fan-out: same event to both consumers), and with
-  Mongo stopped the poison message **lands in `order.created.notification.queue.dlq`** after 3 retries while
-  **inventory keeps working** (its DLQ stays empty — proves decoupling). **Next:** merge branch, then
-  **Phase 7.5 (demo frontend)** or **Phase 8A (AWS)**.
+- **Phase:** 5 + 6 + 7 + **7.5 (frontend)** ✅ **DONE & VERIFIED** (branch `feat/phase-5-rabbitmq`). Backend:
+  `docker compose up --build` levanta los 9 contenedores healthy. Frontend en `frontend/` (Vite+React+TS+
+  Tailwind): `cd frontend && npm run dev` → `http://localhost:5173`, proxya `/api` al gateway. Verificado live:
+  crear producto → crear orden (**PENDING**) → **stock baja solo** y la **orden pasa sola a CONFIRMED** en ~1s
+  (RabbitMQ, cierre de saga) → **notificación aparece** (fan-out). Carrera TOCTOU: una CONFIRMED, otra
+  CANCELLED, stock nunca negativo. **Next:** merge branch, luego **Phase 8A (AWS)** o deploy público (diferido).
   > ⚠ If re-running after schema changes to queues: `docker compose down -v` first — RabbitMQ won't redeclare
   > an existing queue with different arguments (e.g. adding the DLX args).
 - **Done — Phase 0:** environment (Java 21, Maven, Docker/OrbStack). Monorepo `orders-microservices/`,
