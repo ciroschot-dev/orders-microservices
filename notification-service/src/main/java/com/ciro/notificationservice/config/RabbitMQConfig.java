@@ -24,6 +24,12 @@ public class RabbitMQConfig
     public static final String ORDER_CREATED_ROUTING_KEY = "order.created";
     public static final String ORDER_CREATED_QUEUE = "order.created.notification.queue";
 
+    // Reverse events from inventory: avisamos al cliente cuando la orden se confirma o se cancela.
+    public static final String ORDER_CONFIRMED_ROUTING_KEY = "order.confirmed";
+    public static final String ORDER_CANCELLED_ROUTING_KEY = "order.cancelled";
+    public static final String ORDER_CONFIRMED_QUEUE = "order.confirmed.notification.queue";
+    public static final String ORDER_CANCELLED_QUEUE = "order.cancelled.notification.queue";
+
     // Dead-letter target: after the listener's retries are exhausted (technical failure), the message
     // lands here instead of looping forever.
     public static final String DLX = "order.dlx";
@@ -48,6 +54,33 @@ public class RabbitMQConfig
     public Binding orderCreatedNotificationBinding(Queue orderCreatedNotificationQueue, TopicExchange orderExchange)
     {
         return BindingBuilder.bind(orderCreatedNotificationQueue).to(orderExchange).with(ORDER_CREATED_ROUTING_KEY);
+    }
+
+    // Colas propias para los eventos de vuelta, bindeadas al mismo exchange por routing key.
+    // Sin DLQ dedicada (a diferencia de order.created): si falla, se reintenta y se descarta —
+    // perder un aviso de estado no es crítico para el demo.
+    @Bean
+    public Queue orderConfirmedNotificationQueue()
+    {
+        return QueueBuilder.durable(ORDER_CONFIRMED_QUEUE).build();
+    }
+
+    @Bean
+    public Queue orderCancelledNotificationQueue()
+    {
+        return QueueBuilder.durable(ORDER_CANCELLED_QUEUE).build();
+    }
+
+    @Bean
+    public Binding orderConfirmedNotificationBinding(Queue orderConfirmedNotificationQueue, TopicExchange orderExchange)
+    {
+        return BindingBuilder.bind(orderConfirmedNotificationQueue).to(orderExchange).with(ORDER_CONFIRMED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding orderCancelledNotificationBinding(Queue orderCancelledNotificationQueue, TopicExchange orderExchange)
+    {
+        return BindingBuilder.bind(orderCancelledNotificationQueue).to(orderExchange).with(ORDER_CANCELLED_ROUTING_KEY);
     }
 
     @Bean
