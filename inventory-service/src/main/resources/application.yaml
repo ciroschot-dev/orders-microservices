@@ -18,6 +18,15 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        # Retry a technical failure a few times; when exhausted, reject WITHOUT requeue so the
+        # message is dead-lettered instead of looping forever.
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2000
+        default-requeue-rejected: false
 
 management:
   endpoints:
@@ -31,4 +40,4 @@ management:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}

@@ -2,7 +2,9 @@ package com.ciro.inventoryservice.config;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.DefaultJackson2JavaTypeMapper;
 import org.springframework.amqp.support.converter.Jackson2JavaTypeMapper;
@@ -17,10 +19,20 @@ public class RabbitMQConfig
     public static final String ORDER_CREATED_ROUTING_KEY = "order.created";
     public static final String ORDER_CREATED_QUEUE = "order.created.inventory.queue";
 
+    // Dead-letter target: after the listener's retries are exhausted (technical failure), the message is
+    // routed here instead of being retried forever. Business failures (no stock) are logged, never thrown,
+    // so they don't reach the DLQ.
+    public static final String DLX = "order.dlx";
+    public static final String ORDER_CREATED_DLQ = "order.created.inventory.queue.dlq";
+
     @Bean
     public Queue orderCreatedQueue()
     {
-        return new Queue(ORDER_CREATED_QUEUE);   // durable por defecto: sobrevive reinicios del broker
+        // Durable, and its dead-letter target is the DLX + the DLQ routing key.
+        return QueueBuilder.durable(ORDER_CREATED_QUEUE)
+                .withArgument("x-dead-letter-exchange", DLX)
+                .withArgument("x-dead-letter-routing-key", ORDER_CREATED_DLQ)
+                .build();
     }
 
     @Bean
@@ -33,6 +45,24 @@ public class RabbitMQConfig
     public Binding orderCreatedBinding(Queue orderCreatedQueue, TopicExchange orderExchange)
     {
         return BindingBuilder.bind(orderCreatedQueue).to(orderExchange).with(ORDER_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public DirectExchange deadLetterExchange()
+    {
+        return new DirectExchange(DLX);
+    }
+
+    @Bean
+    public Queue orderCreatedDeadLetterQueue()
+    {
+        return QueueBuilder.durable(ORDER_CREATED_DLQ).build();
+    }
+
+    @Bean
+    public Binding deadLetterBinding(Queue orderCreatedDeadLetterQueue, DirectExchange deadLetterExchange)
+    {
+        return BindingBuilder.bind(orderCreatedDeadLetterQueue).to(deadLetterExchange).with(ORDER_CREATED_DLQ);
     }
 
     @Bean
