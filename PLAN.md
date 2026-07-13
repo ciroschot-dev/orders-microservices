@@ -258,7 +258,8 @@ without notes, in Spanish or English. That's the interview.
 
 > **Update this section at the end of every session.** It's the first thing read on resume.
 
-- **Phase:** 4 ✅ **COMPLETE**. Next up: **Phase 5 (RabbitMQ, event-driven)** — ⭐ core of the project.
+- **Phase:** 5 🔵 **IN PROGRESS** (branch `feat/phase-5-rabbitmq`). Producer + consumer done and compiling;
+  runtime verification + DLQ (task 4) pending. Next: **Phase 6 (notification + MongoDB)**, then **Phase 7 (dockerize)**.
 - **Done — Phase 0:** environment (Java 21, Maven, Docker/OrbStack). Monorepo `orders-microservices/`,
   remote `origin` = `git@github.com:ciroschot-dev/orders-microservices.git`. `order-service` generated
   (Maven · Java 21 · Boot 3.5.15 · group `com.ciro`).
@@ -329,11 +330,40 @@ without notes, in Spanish or English. That's the interview.
 - **Key decisions (Phase 4):** gateway = **reactive** (Netty), so no Spring Web · route destinations via
   `lb://<eureka-name>` not host:port · port + Eureka zone set **explicitly** (not relying on Boot defaults)
   because the gateway is the public face of the system · auth/CORS/rate-limit deferred to a later pass.
-- **Resume here (Phase 5 — RabbitMQ, event-driven ⭐):** RabbitMQ in Docker (management UI `:15672`);
-  `order-service` publishes an `OrderCreated` event (exchange + routing key) on create; `inventory-service`
-  consumes it and **decrements** stock (the decrement deferred from Phase 3 — today it only *checks*); add
-  failure handling (retries / dead-letter queue). New branch `feat/phase-5-rabbitmq` off `main`. See Phase 5
-  checklist above.
+- **Done — Phase 5 so far (RabbitMQ, event-driven ⭐, branch `feat/phase-5-rabbitmq`, committed):**
+  - **Broker:** `rabbitmq:3-management` in the root `docker-compose.yml` (`orderflow-rabbitmq`, AMQP `5672`,
+    UI `15672`, own volume). Both services wired via `spring.rabbitmq` (host/port/user/pass, env-var defaults).
+  - **Producer (`order-service`):** `RabbitMQConfig` declares a **topic exchange** `order.exchange` + a
+    `Jackson2JsonMessageConverter` (JSON on the wire, not Java serialization) + a `RabbitTemplate`.
+    `OrderCreatedEvent`/`OrderItemEvent` = flat DTO records (`orderId` + items), **not** the JPA entity.
+    Published **after commit** via `OrderEventPublisher` (`@TransactionalEventListener(AFTER_COMMIT)` on a
+    Spring app event) so a rolled-back order never leaks a message (**dual-write** handled; outbox marked
+    optional/skipped — see Phase 5 list). `OrderService` no longer knows RabbitMQ exists.
+  - **Consumer (`inventory-service`):** `RabbitMQConfig` declares its **own** queue
+    `order.created.inventory.queue` + the exchange + the **binding** (routing key `order.created`); converter
+    uses `TypePrecedence.INFERRED` to ignore the producer's `__TypeId__` header (which names an `order` class
+    that doesn't exist here). Event records are **duplicated locally** (no shared JAR → no compile-time
+    coupling). `OrderEventListener` (`@RabbitListener`) delegates to `ProductService.applyOrderCreated`, which
+    is `@Transactional`, loops the items and calls the repo's **atomic conditional decrement**
+    (`@Modifying @Query` UPDATE `... WHERE availableQuantity >= :quantity`, returns `int` rows affected —
+    `0` = no stock → **log warning** for now, compensation later). Business failure (no stock) is logged,
+    **not** thrown (avoids poison-message retry loop; that's for *technical* failures via DLQ).
+  - **Decision made this session:** all line items decrement in **one transaction** — partial decrement is
+    possible if item N runs short; acceptable until the compensating cancel-order event exists.
+  - **Still pending in Phase 5:** (1) **runtime verification** — start `discovery`+`inventory`+`order`,
+    create an order, watch stock drop on its own via `GET /api/products`; (2) **task 4 — DLQ + retries** for
+    technical failures.
+- **Concepts documented (this session):** full Q&A written to the study hub
+  `iCloud/CV/CV PROGRAMADOR Inglés/Interview Prep/orderflow-interview-prep.md` — §7 messaging (async vs sync,
+  exchange/queue/binding, fan-out, topic/direct/fanout, TOCTOU, saga/compensation, 2PC, the bank myth,
+  201-means-accepted, dual-write + the two fixes, idempotency, why-no-shared-module, `__TypeId__`,
+  `@RabbitListener`) and §8 concurrency (read-modify-write, **lost update** vs phantom read, why
+  `@Transactional` doesn't protect in READ COMMITTED, the conditional UPDATE, Instagram-likes trade-off).
+- **Career context (jul-2026):** goal shifted — **not** actively job-hunting now (1 semester left to graduate =
+  priority; client-acquisition business in Spain out-earns a junior role). Finish OrderFlow as a **technical
+  asset** (feeds the business / future productization), keep Phase 10 warm as optionality. Active job search
+  deferred to ~2027. Phase 8 split into **8A** (CV: AWS/CI-CD/auth/observability) and **8B** (product: only if
+  actually selling).
 - **To decide later:** product's final name · whether to niche into food service.
 
 ---
