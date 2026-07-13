@@ -124,57 +124,85 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 - [x] Path routing (`/api/orders/**` → order, `/api/products/**` → inventory)
 - **Learn:** API gateway pattern · routing · why a single entry point (auth, CORS, rate limit later).
 
-### Phase 5 — RabbitMQ (event-driven)  ·  ⚪ pending  ·  ⭐ core of the project
+### Phase 5 — RabbitMQ (event-driven)  ·  ✅ done & verified  ·  ⭐ core of the project
 **Goal:** decouple with asynchronous messaging.
-- [ ] RabbitMQ running in Docker (with management UI `http://localhost:15672`)
-- [ ] `order` publishes `OrderCreated` event (exchange + routing key) when creating an order
-- [ ] `inventory` consumes `OrderCreated` and decrements stock
-- [ ] Failure handling: retries / dead-letter queue (DLQ)
-- **Learn:** AMQP · exchange/queue/binding · producer/consumer · idempotency · DLQ · why async.
+- [x] RabbitMQ running in Docker (with management UI `http://localhost:15672`)
+- [x] `order` publishes `OrderCreated` event (exchange + routing key) when creating an order
+      — published **after commit** (`@TransactionalEventListener(AFTER_COMMIT)`), never inside the tx
+- [x] `inventory` consumes `OrderCreated` and decrements stock (atomic conditional UPDATE)
+- [x] Failure handling: retries (3x) + dead-letter queue (DLQ) on both consumers, for *technical* failures
+- [ ] **Runtime verify:** create an order → stock drops on its own; a notification appears (fan-out)
+- [ ] *(not built)* idempotency guard on the consumer (dedupe by `orderId`) — named, deferred
+- [ ] *(optional, deferred)* **Transactional outbox** — the only way to make the DB write and the publish
+      truly atomic. Deliberately skipped: `AFTER_COMMIT` covers rollback; its remaining gap is losing the
+      event if the process dies between commit and send. The outbox is not "one table" — it's a poller with
+      multi-instance locking, ordering, cleanup and *still* at-least-once. Know it, name its limits, don't build it.
+- **Learn:** AMQP · exchange/queue/binding · producer/consumer · **dual-write problem** · idempotency · DLQ ·
+  why async · eventual consistency · saga/compensation (why there's no distributed transaction).
 
-### Phase 6 — `notification-service` + MongoDB  ·  ⚪ pending
+### Phase 6 — `notification-service` + MongoDB  ·  ✅ done & verified
 **Goal:** add NoSQL and a second consumer of the event.
-- [ ] `notification-service` with MongoDB (Docker)
-- [ ] Consumes `OrderCreated` and stores/"sends" a notification (log/simulated email)
+- [x] `notification-service` with MongoDB (port 8083, own queue `order.created.notification.queue`)
+- [x] Consumes `OrderCreated`, stores a notification document; `GET /api/notifications` + gateway route
+- [x] **Fan-out proven:** same event lands in both inventory's and notification's queue, zero changes in `order`
 - **Learn:** when NoSQL vs SQL · Spring Data MongoDB · fan-out (several consumers, one event).
 
-### Phase 7 — Full dockerization  ·  ⚪ pending
+### Phase 7 — Full dockerization  ·  ✅ done & verified
 **Goal:** `docker compose up` brings EVERYTHING up.
-- [ ] `Dockerfile` (multi-stage) per service + `.dockerignore`
-- [ ] `docker-compose.yml`: postgres, mongo, rabbitmq, eureka, gateway, order, inventory, notification
-- [ ] Healthchecks and startup order (`depends_on`)
+- [x] `Dockerfile` (multi-stage: Maven build → slim JRE) per service + `.dockerignore`
+- [x] `docker-compose.yml`: 2 postgres, mongo, rabbitmq, discovery, gateway, order, inventory, notification
+- [x] Healthchecks on infra + `depends_on` (condition: service_healthy) for startup order
+- [x] Container-friendly config: `EUREKA_URI`/`DB_URL`/`RABBITMQ_HOST`/`MONGO_URI` via env (no `localhost`)
 - **Learn:** multi-stage builds · compose · networking between containers · healthchecks.
 
-### Phase 7.5 — Demo frontend, built with agentic AI  ·  ⚪ future (post-learning)
+### Phase 7.5 — Demo frontend, built with agentic AI  ·  ✅ done & verified (local) — 2026-07-13
 **Goal:** turn the backend into a **fully functional app anyone can try in the browser** — the piece that
 makes the portfolio land. Not the sellable SaaS yet (no multi-tenancy/billing); a polished, public demo.
 **CV angle (the point):** build it *primarily with agentic AI tooling* (Claude Code, v0, etc.) so it becomes
 a first-class CV line — "agentic programming / AI-assisted development" — which is highly valued today.
-- [ ] Frontend SPA (React/Next or similar) consuming the **API Gateway** (Phase 4), not the services directly
-- [ ] Core screens: manage products/stock · create an order (with the live stock check) · view order
-      status & history · see notifications (Phase 6 fan-out)
+- **Stack:** Vite + React 19 + TypeScript + Tailwind v4, en `frontend/`. Diseño Dark-OLED (navy `#0F172A`,
+  acento verde, Inter, badges de estado por color) elegido con la skill `ui-ux-pro-max`.
+- [x] Frontend SPA consumiendo el **API Gateway** (`:8080`) vía proxy de Vite (`/api` → gateway; CORS gratis en dev)
+- [x] Core screens: Inventario (ABM productos) · Crear orden (con vista de stock en vivo) · Órdenes
+      (estados + PATCH + ítems expandibles) · Notificaciones (polling, fan-out de Phase 6)
+- [x] "Momento wow": tras crear una orden se ve el stock caer **y la orden pasar sola a CONFIRMED** en vivo
+      (polling) — prueba visual del flujo async
+- [x] **Cierre de saga (coreografía)**: inventory publica de vuelta `order.confirmed` / `order.cancelled` y
+      order-service los consume para mover la orden a CONFIRMED / CANCELLED sin intervención manual. Routing
+      keys nuevas sobre `order.exchange`; colas `order.confirmed.order.queue` / `order.cancelled.order.queue`.
+- [x] Verificado end-to-end: happy path → CONFIRMED + stock 20→15; y la **carrera TOCTOU** (2 órdenes de 8 vs
+      stock 10) → una CONFIRMED (10→2), la otra CANCELLED, stock nunca negativo. Corre con `npm run dev`.
+- [ ] **Public live demo**: deploy frontend + backend somewhere anyone can click through it with seed data
+      and a guided happy path (no local setup required) — **diferido** (por ahora corre local)
 - [ ] Built with an **agentic workflow** on purpose — document how it was done (prompts, iterations) as part
       of the portfolio story
-- [ ] **Public live demo**: deploy frontend + backend somewhere anyone can click through it with seed data
-      and a guided happy path (no local setup required)
 - **Learn / CV:** agentic development end-to-end · wiring a real UI to a microservices backend via the
   gateway · product thinking (turning APIs into something a human actually uses).
 > Placement note: numbered 7.5 to sit between "system works" (7) and "sellable SaaS" (8) without renumbering.
 > Can be promoted/reordered later.
 
-### Phase 8 — Path to a sellable SaaS  ·  ⚪ future (post-learning)
+### Phase 8 — Production-grade + cloud  ·  ⚪ future (post-learning)
 **Cloud strategy: local-first.** Everything is developed and tested locally with Docker (free). AWS only
 comes in once the whole system runs (post Phase 7). Don't deploy on each phase: avoid cost and complexity.
 For CV/interview it's enough to have deployed it once, have the diagram and know how to explain it (it can
 be turned off to avoid paying). AWS mapping in `docs/ARCHITECTURE.md` → "Cloud target (AWS)".
+
+> **Scope decision (Ciro, 2026-07-10):** the goal is **landing the job**, not selling OrderFlow. So 8A is
+> the phase; 8B only happens if the product is actually going to be sold. Building 8B "for the portfolio"
+> is wasted time — no interviewer asks about your billing integration.
+
+**8A — the part that goes on the CV (do this).** A real, working, deployed product.
 - [ ] Deploy on **AWS**: services on **ECS Fargate** · **RDS** (Postgres) · **DocumentDB** or Mongo Atlas ·
-      **Amazon MQ** (RabbitMQ) · **ECR** (images) · **Secrets Manager** · CI/CD with **GitHub Actions**
+      **Amazon MQ** (RabbitMQ) · **ECR** (images) · **Secrets Manager**
+- [ ] **CI/CD with GitHub Actions** (build → test → push image → deploy)
+- [ ] **Authentication/authorization** (Spring Security + JWT or OAuth2) — at the gateway
+- [ ] **Observability** (centralized logs, metrics, distributed tracing)
 - [ ] (Kubernetes → see optional Phase 9 below)
-- [ ] Authentication/authorization (Spring Security + JWT or OAuth2)
+
+**8B — only if OrderFlow is actually going to be sold (skip otherwise).** Product work, not CV work.
 - [ ] Multi-tenancy (several isolated businesses)
 - [ ] Admin panel (frontend) + billing/subscription
-- [ ] **Electronic invoicing with ARCA (ex-AFIP)** — feature that makes the product truly sellable
-- [ ] Observability (centralized logs, metrics, distributed tracing)
+- [ ] **Electronic invoicing with ARCA (ex-AFIP)** — the feature that makes it truly sellable
 
 ### Phase 9 (OPTIONAL) — Kubernetes  ·  ⚪ future · do only after Phase 8 works
 **Why:** Accenture and most serious Java/cloud roles list **Openshift**, which *is* Kubernetes.
@@ -192,13 +220,65 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
 - **Learn:** declarative orchestration · pods/deployments/services · ConfigMap/Secret · self-healing ·
   auto-scaling · rolling updates · why these patterns exist (you built them by hand in earlier phases).
 
+### Phase 10 — Interview mastery (defend every concept out loud)  ·  ⚪ ongoing  ·  🎯 the actual goal
+**Why this phase exists:** the project is the *evidence*, not the goal. The goal is the **job**. In the
+room nobody watches you code — they ask *why*, they push on trade-offs, they poke the corner cases. A
+concept you built but can't explain out loud, under a follow-up, is a concept you don't own yet. This phase
+turns "I made it work" into "I can defend why, and what I'd do differently".
+
+**Source material:** `docs/INTERVIEW-PREP.md` — the living Q&A that grows one section per phase, drawn from
+the real decisions made here. This phase is about *rehearsing* it aloud, not just having it written.
+
+**Method (per concept, not per phase):**
+1. **Explain it cold, out loud, in 60–90s** — no notes. Record yourself or say it to someone. If you stumble
+   or hand-wave, that's the gap.
+2. **Survive one follow-up "why?"** — for each answer, have the next layer ready: *why this and not the
+   alternative?*, *what does it cost?*, *when would you NOT do this?*. Interviewers dig one level past the
+   textbook answer; that's where they separate "read a tutorial" from "understands it".
+3. **Name the trade-off** — every decision here had a cost (async → eventual consistency; database-per-service
+   → no JOINs; circuit breaker → stale/fallback data). Owning the cost is the senior signal.
+4. **Tie it to a line of your code** — "I used X" beats "X exists". Point at the file, the annotation, the config.
+
+**Concept domains to own** (each maps to a section of `INTERVIEW-PREP.md` and a piece you built):
+- [ ] **Microservices fundamentals** — vs monolith; when it's over-engineering; database-per-service and its cost.
+- [ ] **Spring core** — IoC/DI, why constructor injection, bean lifecycle, `@Transactional` (proxy, propagation,
+      why self-invocation breaks it — you hit this with the circuit breaker bean).
+- [ ] **JPA / Hibernate** — entity vs DTO, LAZY vs EAGER, the N+1 problem, dirty checking, bidirectional
+      ownership, `ddl-auto` vs Flyway (and why Flyway for prod).
+- [ ] **REST design** — status codes with intent (201/404/409/503), `ProblemDetail`/RFC 7807, idempotency.
+- [ ] **Service discovery (Eureka)** — the problem it solves, client- vs server-side, heartbeats, self-preservation.
+- [ ] **Synchronous comms (OpenFeign)** — declarative clients, client-side load balancing, resolve-by-name.
+- [ ] **Resilience (Resilience4j)** — circuit breaker states (closed/open/half-open), fallback vs ignore-exceptions,
+      why the breaker lives in its own bean (AOP self-invocation), timeouts/retries/bulkhead.
+- [ ] **API Gateway** — single entry point, why reactive (Netty) here, `lb://` routing, what belongs here
+      (auth/CORS/rate-limit) vs the services.
+- [ ] **Async messaging (RabbitMQ / AMQP)** — exchange/queue/binding, producer/consumer, topic vs direct vs fanout,
+      **idempotency** (why a consumer must tolerate duplicates), **DLQ + retries**, why async beats sync here.
+- [ ] **SQL vs NoSQL** — Postgres vs MongoDB, when each, why notification is a fit for a document store.
+- [ ] **Distributed systems basics** — eventual consistency, CAP (pick 2), why there's no cross-service transaction
+      and how the saga/choreography idea replaces it (order publishes → inventory reacts).
+- [ ] **Testing** — unit (Mockito) vs integration (Testcontainers), why a real ephemeral DB beats an H2 mock.
+- [ ] **Docker / Compose** — images vs containers, multi-stage builds, layer caching, volumes, why compose for local.
+- [ ] **Cloud mapping (AWS)** — each local piece → its managed AWS equivalent (see `docs/ARCHITECTURE.md`), and
+      *why* (Fargate vs EC2, RDS vs self-managed Postgres, Amazon MQ vs running RabbitMQ yourself).
+
+**Done when:** you can pick any domain at random and deliver the cold explanation + one follow-up + the trade-off,
+without notes, in Spanish or English. That's the interview.
+
 ---
 
 ## 5. CURRENT STATUS  📍
 
 > **Update this section at the end of every session.** It's the first thing read on resume.
 
-- **Phase:** 4 ✅ **COMPLETE**. Next up: **Phase 5 (RabbitMQ, event-driven)** — ⭐ core of the project.
+- **Phase:** 5 + 6 + 7 + **7.5 (frontend)** ✅ **DONE & VERIFIED** (branch `feat/phase-5-rabbitmq`). Backend:
+  `docker compose up --build` levanta los 9 contenedores healthy. Frontend en `frontend/` (Vite+React+TS+
+  Tailwind): `cd frontend && npm run dev` → `http://localhost:5173`, proxya `/api` al gateway. Verificado live:
+  crear producto → crear orden (**PENDING**) → **stock baja solo** y la **orden pasa sola a CONFIRMED** en ~1s
+  (RabbitMQ, cierre de saga) → **notificación aparece** (fan-out). Carrera TOCTOU: una CONFIRMED, otra
+  CANCELLED, stock nunca negativo. **Next:** merge branch, luego **Phase 8A (AWS)** o deploy público (diferido).
+  > ⚠ If re-running after schema changes to queues: `docker compose down -v` first — RabbitMQ won't redeclare
+  > an existing queue with different arguments (e.g. adding the DLX args).
 - **Done — Phase 0:** environment (Java 21, Maven, Docker/OrbStack). Monorepo `orders-microservices/`,
   remote `origin` = `git@github.com:ciroschot-dev/orders-microservices.git`. `order-service` generated
   (Maven · Java 21 · Boot 3.5.15 · group `com.ciro`).
@@ -269,11 +349,40 @@ Practice **free** with `minikube`/`kind` locally before paying for managed clust
 - **Key decisions (Phase 4):** gateway = **reactive** (Netty), so no Spring Web · route destinations via
   `lb://<eureka-name>` not host:port · port + Eureka zone set **explicitly** (not relying on Boot defaults)
   because the gateway is the public face of the system · auth/CORS/rate-limit deferred to a later pass.
-- **Resume here (Phase 5 — RabbitMQ, event-driven ⭐):** RabbitMQ in Docker (management UI `:15672`);
-  `order-service` publishes an `OrderCreated` event (exchange + routing key) on create; `inventory-service`
-  consumes it and **decrements** stock (the decrement deferred from Phase 3 — today it only *checks*); add
-  failure handling (retries / dead-letter queue). New branch `feat/phase-5-rabbitmq` off `main`. See Phase 5
-  checklist above.
+- **Done — Phase 5 so far (RabbitMQ, event-driven ⭐, branch `feat/phase-5-rabbitmq`, committed):**
+  - **Broker:** `rabbitmq:3-management` in the root `docker-compose.yml` (`orderflow-rabbitmq`, AMQP `5672`,
+    UI `15672`, own volume). Both services wired via `spring.rabbitmq` (host/port/user/pass, env-var defaults).
+  - **Producer (`order-service`):** `RabbitMQConfig` declares a **topic exchange** `order.exchange` + a
+    `Jackson2JsonMessageConverter` (JSON on the wire, not Java serialization) + a `RabbitTemplate`.
+    `OrderCreatedEvent`/`OrderItemEvent` = flat DTO records (`orderId` + items), **not** the JPA entity.
+    Published **after commit** via `OrderEventPublisher` (`@TransactionalEventListener(AFTER_COMMIT)` on a
+    Spring app event) so a rolled-back order never leaks a message (**dual-write** handled; outbox marked
+    optional/skipped — see Phase 5 list). `OrderService` no longer knows RabbitMQ exists.
+  - **Consumer (`inventory-service`):** `RabbitMQConfig` declares its **own** queue
+    `order.created.inventory.queue` + the exchange + the **binding** (routing key `order.created`); converter
+    uses `TypePrecedence.INFERRED` to ignore the producer's `__TypeId__` header (which names an `order` class
+    that doesn't exist here). Event records are **duplicated locally** (no shared JAR → no compile-time
+    coupling). `OrderEventListener` (`@RabbitListener`) delegates to `ProductService.applyOrderCreated`, which
+    is `@Transactional`, loops the items and calls the repo's **atomic conditional decrement**
+    (`@Modifying @Query` UPDATE `... WHERE availableQuantity >= :quantity`, returns `int` rows affected —
+    `0` = no stock → **log warning** for now, compensation later). Business failure (no stock) is logged,
+    **not** thrown (avoids poison-message retry loop; that's for *technical* failures via DLQ).
+  - **Decision made this session:** all line items decrement in **one transaction** — partial decrement is
+    possible if item N runs short; acceptable until the compensating cancel-order event exists.
+  - **Still pending in Phase 5:** (1) **runtime verification** — start `discovery`+`inventory`+`order`,
+    create an order, watch stock drop on its own via `GET /api/products`; (2) **task 4 — DLQ + retries** for
+    technical failures.
+- **Concepts documented (this session):** full Q&A written to the study hub
+  `iCloud/CV/CV PROGRAMADOR Inglés/Interview Prep/orderflow-interview-prep.md` — §7 messaging (async vs sync,
+  exchange/queue/binding, fan-out, topic/direct/fanout, TOCTOU, saga/compensation, 2PC, the bank myth,
+  201-means-accepted, dual-write + the two fixes, idempotency, why-no-shared-module, `__TypeId__`,
+  `@RabbitListener`) and §8 concurrency (read-modify-write, **lost update** vs phantom read, why
+  `@Transactional` doesn't protect in READ COMMITTED, the conditional UPDATE, Instagram-likes trade-off).
+- **Career context (jul-2026):** goal shifted — **not** actively job-hunting now (1 semester left to graduate =
+  priority; client-acquisition business in Spain out-earns a junior role). Finish OrderFlow as a **technical
+  asset** (feeds the business / future productization), keep Phase 10 warm as optionality. Active job search
+  deferred to ~2027. Phase 8 split into **8A** (CV: AWS/CI-CD/auth/observability) and **8B** (product: only if
+  actually selling).
 - **To decide later:** product's final name · whether to niche into food service.
 
 ---

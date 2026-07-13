@@ -1,4 +1,5 @@
 services:
+  # ---- Infrastructure ----
   order-postgres:
     image: postgres:16-alpine
     container_name: orderflow-order-postgres
@@ -10,6 +11,11 @@ services:
       - "5432:5432"
     volumes:
       - order_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   inventory-postgres:
@@ -23,8 +29,120 @@ services:
       - "5433:5432"
     volumes:
       - inventory_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: orderflow-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  notification-mongo:
+    image: mongo:7
+    container_name: orderflow-notification-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - notification_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---- Application services ----
+  discovery-server:
+    build: ./discovery-server
+    container_name: orderflow-discovery
+    ports:
+      - "8761:8761"
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: orderflow-gateway
+    environment:
+      EUREKA_URI: http://discovery-server:8761/eureka/
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discovery-server
+    restart: unless-stopped
+
+  order-service:
+    build: ./order-service
+    container_name: orderflow-order
+    environment:
+      DB_URL: jdbc:postgresql://order-postgres:5432/orders
+      RABBITMQ_HOST: rabbitmq
+      EUREKA_URI: http://discovery-server:8761/eureka/
+    ports:
+      - "8081:8081"
+    depends_on:
+      order-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: unless-stopped
+
+  inventory-service:
+    build: ./inventory-service
+    container_name: orderflow-inventory
+    environment:
+      DB_URL: jdbc:postgresql://inventory-postgres:5432/inventory
+      RABBITMQ_HOST: rabbitmq
+      EUREKA_URI: http://discovery-server:8761/eureka/
+    ports:
+      - "8082:8082"
+    depends_on:
+      inventory-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+    restart: unless-stopped
+
+  notification-service:
+    build: ./notification-service
+    container_name: orderflow-notification
+    environment:
+      MONGO_URI: mongodb://notification-mongo:27017/notifications
+      RABBITMQ_HOST: rabbitmq
+      EUREKA_URI: http://discovery-server:8761/eureka/
+    ports:
+      - "8083:8083"
+    depends_on:
+      notification-mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
     restart: unless-stopped
 
 volumes:
   order_postgres_data:
   inventory_postgres_data:
+  rabbitmq_data:
+  notification_mongo_data:

@@ -1,18 +1,12 @@
 server:
-  port: 8082
+  port: 8083
 
 spring:
   application:
-    name: inventory-service
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5433/inventory}
-    username: ${DB_USER:inventory}
-    password: ${DB_PASSWORD:inventory}
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: false
-    open-in-view: false
+    name: notification-service
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/notifications}
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -20,8 +14,6 @@ spring:
     password: ${RABBITMQ_PASSWORD:guest}
     listener:
       simple:
-        # Retry a technical failure a few times; when exhausted, reject WITHOUT requeue so the
-        # message is dead-lettered instead of looping forever.
         retry:
           enabled: true
           max-attempts: 3
