@@ -124,13 +124,15 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 - [x] Path routing (`/api/orders/**` → order, `/api/products/**` → inventory)
 - **Learn:** API gateway pattern · routing · why a single entry point (auth, CORS, rate limit later).
 
-### Phase 5 — RabbitMQ (event-driven)  ·  🔵 in progress  ·  ⭐ core of the project
+### Phase 5 — RabbitMQ (event-driven)  ·  🟡 code done, runtime verify pending  ·  ⭐ core of the project
 **Goal:** decouple with asynchronous messaging.
 - [x] RabbitMQ running in Docker (with management UI `http://localhost:15672`)
-- [ ] `order` publishes `OrderCreated` event (exchange + routing key) when creating an order
+- [x] `order` publishes `OrderCreated` event (exchange + routing key) when creating an order
       — published **after commit** (`@TransactionalEventListener(AFTER_COMMIT)`), never inside the tx
-- [ ] `inventory` consumes `OrderCreated` and decrements stock (atomic conditional UPDATE, idempotent)
-- [ ] Failure handling: retries / dead-letter queue (DLQ)
+- [x] `inventory` consumes `OrderCreated` and decrements stock (atomic conditional UPDATE)
+- [x] Failure handling: retries (3x) + dead-letter queue (DLQ) on both consumers, for *technical* failures
+- [ ] **Runtime verify:** create an order → stock drops on its own; a notification appears (fan-out)
+- [ ] *(not built)* idempotency guard on the consumer (dedupe by `orderId`) — named, deferred
 - [ ] *(optional, deferred)* **Transactional outbox** — the only way to make the DB write and the publish
       truly atomic. Deliberately skipped: `AFTER_COMMIT` covers rollback; its remaining gap is losing the
       event if the process dies between commit and send. The outbox is not "one table" — it's a poller with
@@ -138,17 +140,19 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 - **Learn:** AMQP · exchange/queue/binding · producer/consumer · **dual-write problem** · idempotency · DLQ ·
   why async · eventual consistency · saga/compensation (why there's no distributed transaction).
 
-### Phase 6 — `notification-service` + MongoDB  ·  ⚪ pending
+### Phase 6 — `notification-service` + MongoDB  ·  🟡 code done, runtime verify pending
 **Goal:** add NoSQL and a second consumer of the event.
-- [ ] `notification-service` with MongoDB (Docker)
-- [ ] Consumes `OrderCreated` and stores/"sends" a notification (log/simulated email)
+- [x] `notification-service` with MongoDB (port 8083, own queue `order.created.notification.queue`)
+- [x] Consumes `OrderCreated`, stores a notification document; `GET /api/notifications` + gateway route
+- [x] **Fan-out proven:** same event lands in both inventory's and notification's queue, zero changes in `order`
 - **Learn:** when NoSQL vs SQL · Spring Data MongoDB · fan-out (several consumers, one event).
 
-### Phase 7 — Full dockerization  ·  ⚪ pending
+### Phase 7 — Full dockerization  ·  🟡 code done, `docker compose up` verify pending
 **Goal:** `docker compose up` brings EVERYTHING up.
-- [ ] `Dockerfile` (multi-stage) per service + `.dockerignore`
-- [ ] `docker-compose.yml`: postgres, mongo, rabbitmq, eureka, gateway, order, inventory, notification
-- [ ] Healthchecks and startup order (`depends_on`)
+- [x] `Dockerfile` (multi-stage: Maven build → slim JRE) per service + `.dockerignore`
+- [x] `docker-compose.yml`: 2 postgres, mongo, rabbitmq, discovery, gateway, order, inventory, notification
+- [x] Healthchecks on infra + `depends_on` (condition: service_healthy) for startup order
+- [x] Container-friendly config: `EUREKA_URI`/`DB_URL`/`RABBITMQ_HOST`/`MONGO_URI` via env (no `localhost`)
 - **Learn:** multi-stage builds · compose · networking between containers · healthchecks.
 
 ### Phase 7.5 — Demo frontend, built with agentic AI  ·  ⚪ future (post-learning)
@@ -258,8 +262,13 @@ without notes, in Spanish or English. That's the interview.
 
 > **Update this section at the end of every session.** It's the first thing read on resume.
 
-- **Phase:** 5 🔵 **IN PROGRESS** (branch `feat/phase-5-rabbitmq`). Producer + consumer done and compiling;
-  runtime verification + DLQ (task 4) pending. Next: **Phase 6 (notification + MongoDB)**, then **Phase 7 (dockerize)**.
+- **Phase:** 5 + 6 + 7 🟡 **CODE DONE, RUNTIME VERIFY PENDING** (branch `feat/phase-5-rabbitmq`). All three
+  built and compiling in one session. What's left is to actually run it: `docker compose up --build` and drive
+  the happy path (create order → stock drops + notification appears). **⚠ before running:** the old queues
+  `order.created.*.queue` were created earlier *without* the DLX arguments; RabbitMQ won't redeclare them with
+  new args → delete them in the UI (`:15672` → Queues) or `docker compose down -v` to wipe, so they get
+  recreated with the dead-letter config. Next after verify: merge branch, then **Phase 7.5 (demo frontend)** or
+  **Phase 8A (AWS)**.
 - **Done — Phase 0:** environment (Java 21, Maven, Docker/OrbStack). Monorepo `orders-microservices/`,
   remote `origin` = `git@github.com:ciroschot-dev/orders-microservices.git`. `order-service` generated
   (Maven · Java 21 · Boot 3.5.15 · group `com.ciro`).
