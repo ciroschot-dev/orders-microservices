@@ -18,6 +18,15 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        # Consumimos los eventos de vuelta (confirmed/cancelled). Si uno falla, reintentar
+        # unas pocas veces y luego descartar sin requeue para no loopear indefinidamente.
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2000
+        default-requeue-rejected: false
 
 management:
   endpoints:

@@ -6,6 +6,8 @@ import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.DefaultJackson2JavaTypeMapper;
 import org.springframework.amqp.support.converter.Jackson2JavaTypeMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -18,6 +20,10 @@ public class RabbitMQConfig
     public static final String ORDER_EXCHANGE = "order.exchange";
     public static final String ORDER_CREATED_ROUTING_KEY = "order.created";
     public static final String ORDER_CREATED_QUEUE = "order.created.inventory.queue";
+
+    // Reverse events we publish back to order-service once stock is (or isn't) reserved.
+    public static final String ORDER_CONFIRMED_ROUTING_KEY = "order.confirmed";
+    public static final String ORDER_CANCELLED_ROUTING_KEY = "order.cancelled";
 
     // Dead-letter target: after the listener's retries are exhausted (technical failure), the message is
     // routed here instead of being retried forever. Business failures (no stock) are logged, never thrown,
@@ -74,5 +80,15 @@ public class RabbitMQConfig
         typeMapper.setTrustedPackages("*");
         converter.setJavaTypeMapper(typeMapper);
         return converter;
+    }
+
+    // Hasta ahora inventory solo consumía; para publicar los eventos de vuelta
+    // (confirmed/cancelled) necesita un RabbitTemplate con el mismo converter JSON.
+    @Bean
+    public RabbitTemplate rabbitTemplate(ConnectionFactory cf, Jackson2JsonMessageConverter conv)
+    {
+        RabbitTemplate template = new RabbitTemplate(cf);
+        template.setMessageConverter(conv);
+        return template;
     }
 }
