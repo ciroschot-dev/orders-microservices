@@ -57,11 +57,19 @@ orders-microservices/
 │   └── ARCHITECTURE.md        ← diagram, services, ports, decisions (ADR-lite)
 ├── discovery-server/          ← Eureka (Phase 2)
 ├── api-gateway/               ← Spring Cloud Gateway (Phase 4)
-├── order-service/             ← orders + Postgres (Phase 1)
-├── inventory-service/         ← stock + Postgres (Phase 3)
-├── notification-service/      ← notifications + MongoDB (Phase 6)
-└── docker-compose.yml         ← brings everything up (Phase 7)
+├── order-service/             ← orders + Postgres (Phase 1); publishes order.created, consumes confirm/cancel
+├── inventory-service/         ← stock + Postgres (Phase 3); consumes order.created, publishes confirm/cancel
+├── notification-service/      ← notifications + MongoDB (Phase 6); consumes created + confirm/cancel
+├── frontend/                  ← React demo SPA, Vite + TS + Tailwind (Phase 7.5); consumes the gateway
+└── docker-compose.yml         ← brings the backend up (Phase 7)
 ```
+
+> **Saga (choreography):** order.created → inventory reserves stock → publishes order.confirmed/order.cancelled
+> → order-service settles the status and notification-service sends a follow-up. No orchestrator. Details in
+> `docs/ARCHITECTURE.md`.
+>
+> **Frontend:** `cd frontend && npm run dev` (→ :5173), proxies `/api` to the gateway. It's a dev SPA, not
+> dockerized. Full docs in `frontend/` and the README.
 
 Each `*-service/` and `api-gateway/`, `discovery-server/` is an **independent Spring Boot project**
 (its own `pom.xml`, its own `.jar`, its own port).

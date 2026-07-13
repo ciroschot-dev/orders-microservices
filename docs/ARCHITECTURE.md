@@ -9,11 +9,12 @@ For working conventions see `../CLAUDE.md`.
 |----------------------|-------------------------------------------------|-----------------|-------|
 | `discovery-server`   | Eureka registry — services register & discover  | —               | 8761  |
 | `api-gateway`        | Single entry point, routing, cross-cutting      | —               | 8080  |
-| `order-service`      | Orders lifecycle, publishes `OrderCreated`      | PostgreSQL      | 8081  |
-| `inventory-service`  | Product stock, consumes `OrderCreated`          | PostgreSQL      | 8082  |
-| `notification-service`| Customer notifications, consumes `OrderCreated`| MongoDB         | 8083  |
+| `order-service`      | Orders lifecycle; publishes `order.created`, consumes confirm/cancel | PostgreSQL | 8081  |
+| `inventory-service`  | Product stock; consumes `order.created`, publishes confirm/cancel   | PostgreSQL | 8082  |
+| `notification-service`| Customer notifications; consumes created + confirm/cancel          | MongoDB    | 8083  |
+| `frontend`           | React demo SPA (Vite dev server), consumes the gateway              | —          | 5173  |
 
-Infra (Docker): PostgreSQL `5432`, MongoDB `27017`, RabbitMQ `5672` (AMQP) / `15672` (management UI).
+Infra (Docker): PostgreSQL `5432` (orders) / `5433` (inventory), MongoDB `27017`, RabbitMQ `5672` (AMQP) / `15672` (management UI).
 
 > Ports are a convention; the gateway hides them from clients. Internal calls resolve service names
 > via Eureka, never hardcoded host:port.
@@ -26,42 +27,60 @@ Two complementary styles, used on purpose:
    accepting an order. Done with **OpenFeign** (declarative HTTP client) + **Resilience4j** circuit
    breaker so a slow/down inventory doesn't take order down.
 
-2. **Asynchronous (event-driven)** — once an order is accepted, `order-service` publishes an
-   `OrderCreated` event to **RabbitMQ**. `inventory-service` (decrement stock) and
-   `notification-service` (notify customer) consume it independently. The order response does **not**
-   wait for them. This is the load-bearing design decision: low latency, decoupling, resilience.
+2. **Asynchronous (event-driven)** — once an order is accepted, `order-service` publishes `order.created`
+   to **RabbitMQ**. `inventory-service` (decrement stock) and `notification-service` (notify customer)
+   consume it independently (**fan-out**). The order response does **not** wait for them. This is the
+   load-bearing design decision: low latency, decoupling, resilience.
+
+3. **Saga / choreography** — after reserving stock, `inventory-service` publishes a **reverse event**
+   (`order.confirmed` or `order.cancelled`). `order-service` consumes it to settle the order status, and
+   `notification-service` consumes it to send a follow-up notification. No central orchestrator: each
+   service reacts to events and emits its own.
 
 ```
-order-service ──publish──► [ RabbitMQ exchange: order.exchange ]
-                                   │ routing key: order.created
+order-service ──publish──► [ RabbitMQ exchange: order.exchange (topic) ]
+                                   │ order.created           (fan-out)
                    ┌───────────────┴───────────────┐
                    ▼                               ▼
-        queue: inventory.order.created   queue: notification.order.created
+        queue: order.created.inventory   queue: order.created.notification
                    │                               │
           inventory-service                notification-service
-        (decrement stock)              (store + "send" notification)
+        (atomic decrement) ──┐            (store "received" notification)
+                             │ publish order.confirmed / order.cancelled
+                   ┌─────────┴─────────────────────┐
+                   ▼                               ▼
+          order-service                   notification-service
+        (order → CONFIRMED / CANCELLED)   (store status notification)
 ```
 
-## Event contract — `OrderCreated`
+## Event contracts
 
-Published by `order-service` after an order is persisted. Consumers must be **idempotent**
-(the same event may be delivered more than once — at-least-once delivery).
+All events flow through the topic exchange `order.exchange`. Bodies are **flat DTOs** on purpose — consumers
+never depend on any service's domain model — and are deserialized by the listener's parameter type
+(`INFERRED` type mapping), so producer package names don't leak. Delivery is **at-least-once**, so consumers
+should be idempotent.
+
+**`order.created`** — published by `order-service` after the order is persisted (on transaction commit).
+Consumed by `inventory-service` **and** `notification-service` (fan-out).
 
 ```json
-{
-  "eventId": "uuid",
-  "occurredAt": "ISO-8601 timestamp",
-  "orderId": "uuid",
-  "customerId": "uuid",
-  "items": [
-    { "productId": "uuid", "quantity": 3 }
-  ]
-}
+{ "orderId": 12, "items": [ { "productId": 3, "quantity": 2 } ] }
 ```
 
-- **Exchange:** `order.exchange` (topic)
-- **Routing key:** `order.created`
-- **Failure handling:** retries with backoff; after N attempts → **dead-letter queue** for inspection.
+**`order.confirmed`** / **`order.cancelled`** — published by `inventory-service` after reserving stock
+(all lines reserved → confirmed; a race lost the last units → cancelled). Consumed by `order-service`
+(set final status) **and** `notification-service` (follow-up notification).
+
+```json
+{ "orderId": 12 }
+```
+
+- **Exchange:** `order.exchange` (topic) · **Routing keys:** `order.created`, `order.confirmed`, `order.cancelled`
+- **Failure handling:** retries with backoff; after N attempts → **dead-letter queue** (`order.dlx`) for
+  inspection. Business failures (no stock) are handled in-band and never thrown, so they don't reach the DLQ.
+- **Why the reverse event:** the synchronous pre-check gives fast feedback, but two concurrent orders for the
+  last units can both pass it (TOCTOU). The atomic conditional `UPDATE` in inventory is the real gatekeeper,
+  and `order.cancelled` is the **compensating action** — eventual consistency between order state and stock.
 
 ## Cross-cutting conventions (per service)
 
@@ -103,3 +122,9 @@ and the experience remain on the CV.
   Kafka would be the choice if we needed high-throughput event streaming / replay — not needed yet.
 - **Eureka over Consul/k8s DNS:** classic Spring Cloud stack, exactly what target job posts ask for.
 - **One DB per service:** each service owns its data; no shared database. Core microservices principle.
+- **Saga by choreography (not orchestration):** the order settles via reverse events (`order.confirmed` /
+  `order.cancelled`) with no central orchestrator. Simpler for this small flow; an orchestrator would earn
+  its keep with more steps or cross-service rollbacks.
+- **Atomic conditional `UPDATE` for stock:** `... SET qty = qty - :n WHERE qty >= :n` decrements only if
+  stock allows, in one statement. Handles the concurrent-order race without pessimistic locks; the rows
+  affected (0 or 1) is the business answer that drives confirm vs cancel.
