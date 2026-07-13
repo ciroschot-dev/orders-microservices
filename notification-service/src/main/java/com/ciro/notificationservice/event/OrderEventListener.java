@@ -21,4 +21,16 @@ public class OrderEventListener
     {
         notificationService.notifyOrderCreated(event);
     }
+
+    @RabbitListener(queues = RabbitMQConfig.ORDER_CONFIRMED_QUEUE)
+    public void onOrderConfirmed(OrderConfirmedEvent event)
+    {
+        notificationService.notifyOrderConfirmed(event.orderId());
+    }
+
+    @RabbitListener(queues = RabbitMQConfig.ORDER_CANCELLED_QUEUE)
+    public void onOrderCancelled(OrderCancelledEvent event)
+    {
+        notificationService.notifyOrderCancelled(event.orderId());
+    }
 }

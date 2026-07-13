@@ -30,6 +30,25 @@ public class NotificationService
         return saved;
     }
 
+    // Reacts to OrderConfirmed: the "we'll let you know" promise from the created-notification, fulfilled.
+    public Notification notifyOrderConfirmed(Long orderId)
+    {
+        return store(orderId, "Order %d confirmed — stock reserved. It's being prepared.".formatted(orderId));
+    }
+
+    // Reacts to OrderCancelled: stock couldn't be reserved (e.g. a race lost the last units).
+    public Notification notifyOrderCancelled(Long orderId)
+    {
+        return store(orderId, "Order %d cancelled — out of stock. Nothing was charged.".formatted(orderId));
+    }
+
+    private Notification store(Long orderId, String message)
+    {
+        Notification saved = notificationRepository.save(new Notification(null, orderId, message, Instant.now()));
+        log.info("Notification stored for order {}", orderId);
+        return saved;
+    }
+
     public List<Notification> getAll()
     {
         return notificationRepository.findAll();
