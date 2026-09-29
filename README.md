@@ -237,4 +237,4 @@ Full roadmap, decisions and current status: [`PLAN.md`](PLAN.md).
 - 📄 [`PLAN.md`](PLAN.md) — vision, phased roadmap and current status. **Start here.**
 - 🏗️ [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — services, ports, communication styles, event contracts,
   technical decisions (ADR-lite) and the AWS cloud mapping.
-- ⚙️ [`CLAUDE.md`](CLAUDE.md) — conventions, stack and working mode.
+- ⚙️ [`AGENTS.md`](AGENTS.md) — conventions, stack and working mode.

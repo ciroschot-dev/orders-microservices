@@ -1,4 +1,4 @@
-# CLAUDE.md — orders-microservices
+# AGENTS.md — orders-microservices
 
 > Project instructions for Claude Code. Read on resume. The work plan and current
 > status live in `PLAN.md`. The technical architecture, in `docs/ARCHITECTURE.md`.
@@ -12,7 +12,7 @@ This project is built with the **`/profesor`** skill active. That means:
   `discovery-server/`, etc.). Zero `git commit`.
 - Claude acts as a **mentor**: explains the concept, assigns a concrete task, waits for
   Ciro to write it, and reviews with clear feedback (what's right, what to adjust and **why**).
-- **Allowed exception:** documentation/planning files (`CLAUDE.md`, `PLAN.md`,
+- **Allowed exception:** documentation/planning files (`AGENTS.md`, `PLAN.md`,
   `docs/**`, `README.md`) Claude may write — they aren't code Ciro needs to learn.
 - Example snippets in chat are allowed as reference; Ciro adapts and rewrites them.
 - Language: **English everywhere** — chat, code, commits, errors, docs.
@@ -50,7 +50,7 @@ See business vision and full roadmap in `PLAN.md`.
 
 ```
 orders-microservices/
-├── CLAUDE.md                  ← this file
+├── AGENTS.md                  ← this file
 ├── PLAN.md                    ← vision, phased roadmap, CURRENT STATUS
 ├── README.md                  ← quick entry point
 ├── docs/

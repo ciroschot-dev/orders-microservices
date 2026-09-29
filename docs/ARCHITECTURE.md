@@ -1,7 +1,7 @@
 # Architecture — OrderFlow
 
 Technical reference for the microservices system. For the roadmap and current status see `../PLAN.md`.
-For working conventions see `../CLAUDE.md`.
+For working conventions see `../AGENTS.md`.
 
 ## Services & ports
 

@@ -2,7 +2,7 @@
 
 > Master work and learning plan. Meant for **resuming the conversation after a `/clear`**.
 > If you come back and don't remember where we were, read the **CURRENT STATUS** section first.
-> Working mode: **`/profesor`** skill active (see `CLAUDE.md`). Ciro writes all the code.
+> Working mode: **`/profesor`** skill active (see `AGENTS.md`). Ciro writes all the code.
 
 ---
 
@@ -79,7 +79,7 @@ Each phase is **committable and adds to the CV** even if you stop there. Mark pr
 ### Phase 0 — Setup and foundations  ·  ✅ DONE
 **Goal:** repo structure + first service generated.
 - [x] Root folder `orders-microservices/` created
-- [x] Base documentation (`CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`, `README.md`)
+- [x] Base documentation (`AGENTS.md`, `PLAN.md`, `docs/ARCHITECTURE.md`, `README.md`)
 - [x] `order-service` generated via IntelliJ's **New Project → Spring Boot** (built-in Spring Initializr) with:
       Maven · Java 21 · Spring Boot 3.5.15 · Group `com.ciro` · Artifact `order-service` ·
       deps: **Spring Web, Spring Data JPA, PostgreSQL Driver, Lombok, springdoc-openapi**
@@ -390,5 +390,5 @@ without notes, in Spanish or English. That's the interview.
 ## 6. How to resume after `/clear`
 
 1. Read this **CURRENT STATUS** section (above).
-2. Reactivate professor mode: `/profesor` (or tell me). See rules in `CLAUDE.md`.
+2. Reactivate professor mode: `/profesor` (or tell me). See rules in `AGENTS.md`.
 3. Continue from "Immediate next step".
